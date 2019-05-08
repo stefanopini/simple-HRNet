@@ -27,13 +27,11 @@ def main():
     dl = DataLoader(ds, batch_size=1, shuffle=False, num_workers=0)
 
     while True:
-        for ret, frame in dl:
-            out = model(frame.to(device))
-            print(out.shape)
+        for ret, frame, input in dl:
+            out = model(input.to(device))
 
             frame_cv2 = frame.detach().cpu().numpy()[0]
-            # frame_cv2 = cv2.resize(np.transpose(frame_cv2, (1, 2, 0)), (96, 72), cv2.INTER_CUBIC)
-            frame_cv2 = np.ascontiguousarray(np.transpose(frame_cv2, (1, 2, 0)), dtype=np.uint8)
+            frame_cv2 = np.ascontiguousarray(frame_cv2, dtype=np.uint8)
 
             out_hm = out.detach().cpu().numpy()[0]
             for o in out_hm:
