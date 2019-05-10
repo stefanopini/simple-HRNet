@@ -5,14 +5,15 @@ import torch
 from torch.utils.data.dataloader import DataLoader
 from datasets.LiveCamera import LiveCameraDataset
 from models.hrnet import HRNet
+from misc.utils import draw_points, draw_skeleton, draw_points_and_skeleton, joints_dict
 
 
 def main():
     if torch.cuda.is_available() and True:
         torch.backends.cudnn.deterministic = True
-        device = 'cuda:0'
+        device = torch.device('cuda:0')
     else:
-        device = 'cpu'
+        device = torch.device('cpu')
 
     print(device)
 
@@ -22,21 +23,38 @@ def main():
     model.load_state_dict(torch.load(
         './pretrained_weights/pose_hrnet_w48_384x288.pth'
     ))
+    model.eval()
 
-    ds = LiveCameraDataset(resolution=(384, 288))
+    ds = LiveCameraDataset(resolution=(384, 288), multiperson=True, device=device)
     dl = DataLoader(ds, batch_size=1, shuffle=False, num_workers=0)
 
     while True:
-        for ret, frame, input in dl:
-            out = model(input.to(device))
-
+        for ret, frame, boxes, inp in dl:
             frame_cv2 = frame.detach().cpu().numpy()[0]
             frame_cv2 = np.ascontiguousarray(frame_cv2, dtype=np.uint8)
+            boxes = np.asarray([[b.item() for b in box] for box in boxes], dtype=np.int32)
 
-            out_hm = out.detach().cpu().numpy()[0]
-            for o in out_hm:
-                pt = np.unravel_index(np.argmax(o), shape=(72, 96))
-                frame_cv2 = cv2.circle(frame_cv2, (pt[1] * 4, pt[0] * 4), 4, (0, 255, 0), -1)
+            if inp.shape[1] > 0:
+                inp = inp.to(device)
+                inp = torch.squeeze(inp, 0)
+
+                with torch.no_grad():
+                    out = model(inp)
+
+                out = out.detach().cpu().numpy()
+                for i, human in enumerate(out):
+                    bbox = frame_cv2[boxes[i][1]:boxes[i][3], boxes[i][0]:boxes[i][2]]
+                    pts = np.zeros((len(human), 3), dtype=np.float32)  # x, y, confidence for each joint
+                    for j, joint in enumerate(human):
+                        pt = np.unravel_index(np.argmax(joint), shape=(72, 96))
+                        pts[j, 0] = pt[0] * 1. / 48 * bbox.shape[0]
+                        pts[j, 1] = pt[1] * 1. / 64 * bbox.shape[1]
+                        pts[j, 2] = joint[pt]
+                    # bbox = draw_points(bbox, pts)
+                    # bbox = draw_skeleton(bbox, pts, joints_dict()['coco']['skeleton'])
+                    # bbox = draw_points_and_skeleton(bbox, pts, joints_dict()['coco']['skeleton'], person_index=i)
+                    bbox = draw_points_and_skeleton(bbox, pts, joints_dict()['coco']['skeleton'], person_index=i,
+                                                    joints_color_palette='Set3', skeleton_color_palette='Pastel2')
 
             if has_display:
                 cv2.imshow('frame.png', frame_cv2)

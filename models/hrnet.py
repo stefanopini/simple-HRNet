@@ -205,9 +205,9 @@ if __name__ == '__main__':
 
     if torch.cuda.is_available() and False:
         torch.backends.cudnn.deterministic = True
-        device = 'cuda:0'
+        device = torch.device('cuda:0')
     else:
-        device = 'cpu'
+        device = torch.device('cpu')
 
     print(device)
 
