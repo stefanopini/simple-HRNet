@@ -1,4 +1,4 @@
-## Deep High-Resolution Representation Learning for Human Pose Estimation
+## Multi-person Human Pose Estimation with HRNet in Pytorch
 
 This is an unofficial implementation of the paper
  [*Deep High-Resolution Representation Learning for Human Pose Estimation*](https://arxiv.org/abs/1902.09212).  
@@ -11,13 +11,13 @@ The code is fully compatible with the
 
 
 This repository provides:
-- A simple ``HRNet`` implementation in Pytorch (>=1.0) - compatible with official weights
+- A simple ``HRNet`` implementation in Pytorch (>=1.0) - compatible with official weights.
 - A simple class (``SimpleHRNet``) that loads the HRNet network for the human pose estimation, loads the pre-trained weights,
  and make human predictions on single images.
 - Multi-person support with
  [YOLOv3](https://github.com/eriklindernoren/PyTorch-YOLOv3/tree/47b7c912877ca69db35b8af3a38d6522681b3bb3) 
  (enabled by default).  
-- A reference code that runs a real-time demo reading frames from a webcam or a video file.
+- A reference code that runs a live demo reading frames from a webcam or a video file.
  
 #### Class usage
 
