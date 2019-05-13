@@ -110,11 +110,11 @@ class YOLOv3:
             if c in self.classes:
                 self.classes_id.append(i)
 
-    def predict_single(self, image):
-        return self.predict(np.asarray([image], dtype=image.dtype))[0]
+    def predict_single(self, image, color_mode='BGR'):
+        return self.predict(np.asarray([image], dtype=image.dtype), color_mode=color_mode)[0]
 
-    def predict(self, images):
-        images_rescaled = prepare_data(images)
+    def predict(self, images, color_mode='BGR'):
+        images_rescaled = prepare_data(images, color_mode=color_mode)
         with torch.no_grad():
             images_rescaled = images_rescaled.to(self.device)
             detections = self.model(images_rescaled)

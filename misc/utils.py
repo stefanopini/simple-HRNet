@@ -65,18 +65,35 @@ def joints_dict():
     return joints
 
 
-def draw_points(image, points, color_palette='tab20'):
-    colors = np.round(np.array(plt.get_cmap(color_palette).colors) * 255).astype(np.uint8)[:, ::-1].tolist()
+def draw_points(image, points, color_palette='tab20', palette_samples=16):
+    try:
+        colors = np.round(
+            np.array(plt.get_cmap(color_palette).colors) * 255
+        ).astype(np.uint8)[:, ::-1].tolist()
+    except AttributeError:  # if palette has not pre-defined colors
+        colors = np.round(
+            np.array(plt.get_cmap(color_palette)(np.linspace(0, 1, palette_samples))) * 255
+        ).astype(np.uint8)[:, -2::-1].tolist()
+
+    circle_size = max(1, min(image.shape[:2]) // 160)  # ToDo Shape it taking into account the size of the detection
+    # circle_size = max(2, int(np.sqrt(np.max(np.max(points, axis=0) - np.min(points, axis=0)) // 16)))
 
     for i, pt in enumerate(points):
         if pt[2] > 0.5:
-            image = cv2.circle(image, (int(pt[1]), int(pt[0])), 4, tuple(colors[i % len(colors)]), -1)
+            image = cv2.circle(image, (int(pt[1]), int(pt[0])), circle_size, tuple(colors[i % len(colors)]), -1)
 
     return image
 
 
-def draw_skeleton(image, points, skeleton, color_palette='Set2', person_index=0):
-    colors = np.round(np.array(plt.get_cmap(color_palette).colors) * 255).astype(np.uint8)[:, ::-1][:, ::-1].tolist()
+def draw_skeleton(image, points, skeleton, color_palette='Set2', palette_samples=8, person_index=0):
+    try:
+        colors = np.round(
+            np.array(plt.get_cmap(color_palette).colors) * 255
+        ).astype(np.uint8)[:, ::-1].tolist()
+    except AttributeError:  # if palette has not pre-defined colors
+        colors = np.round(
+            np.array(plt.get_cmap(color_palette)(np.linspace(0, 1, palette_samples))) * 255
+        ).astype(np.uint8)[:, -2::-1].tolist()
 
     for i, joint in enumerate(skeleton):
         pt1, pt2 = points[joint]
@@ -89,8 +106,9 @@ def draw_skeleton(image, points, skeleton, color_palette='Set2', person_index=0)
     return image
 
 
-def draw_points_and_skeleton(image, points, skeleton, joints_color_palette='tab20', skeleton_color_palette='Set2',
-                         person_index=0):
-    image = draw_skeleton(image, points, skeleton, skeleton_color_palette, person_index)
-    image = draw_points(image, points, joints_color_palette)
+def draw_points_and_skeleton(image, points, skeleton, joints_color_palette='tab20', joints_palette_samples=16,
+                             skeleton_color_palette='Set2', skeleton_palette_samples=8, person_index=0):
+    image = draw_skeleton(image, points, skeleton, color_palette=skeleton_color_palette,
+                          palette_samples=skeleton_palette_samples, person_index=person_index)
+    image = draw_points(image, points, color_palette=joints_color_palette, palette_samples=joints_palette_samples)
     return image
