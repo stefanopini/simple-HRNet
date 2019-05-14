@@ -7,7 +7,7 @@ from SimpleHRNet import SimpleHRNet
 from misc.utils import draw_points, draw_skeleton, draw_points_and_skeleton, joints_dict
 
 
-def main(camera_id, filename, hrnet_c, hrnet_j, hrnet_pretrained_weights, hrnet_joints_set, single_person,
+def main(camera_id, filename, hrnet_c, hrnet_j, hrnet_weights, hrnet_joints_set, single_person,
          max_batch_size, device):
     if device is not None:
         device = torch.device(device)
@@ -31,7 +31,7 @@ def main(camera_id, filename, hrnet_c, hrnet_j, hrnet_pretrained_weights, hrnet_
     model = SimpleHRNet(
         hrnet_c,
         hrnet_j,
-        hrnet_pretrained_weights,
+        hrnet_weights,
         multiperson=not single_person,
         max_batch_size=max_batch_size,
         device=device
@@ -64,8 +64,8 @@ if __name__ == '__main__':
                         type=str, default=None)
     parser.add_argument("--hrnet_c", "-c", help="hrnet parameters - number of channels", type=int, default=48)
     parser.add_argument("--hrnet_j", "-j", help="hrnet parameters - number of joints", type=int, default=17)
-    parser.add_argument("--hrnet_pretrained_weights", "-w", help="hrnet parameters - path of the pretrained weights",
-                        type=str, default="./pretrained_weights/pose_hrnet_w48_384x288.pth")
+    parser.add_argument("--hrnet_weights", "-w", help="hrnet parameters - path to the pretrained weights",
+                        type=str, default="./weights/pose_hrnet_w48_384x288.pth")
     parser.add_argument("--hrnet_joints_set",
                         help="use the specified set of joints ('coco' and 'mpii' are currently supported)",
                         type=str, default="coco")

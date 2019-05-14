@@ -194,12 +194,10 @@ if __name__ == '__main__':
     model = HRNet(32, 17, 0.1)
 
     # print(model)
-    # print('\n\n\n')
-    # print(model.state_dict().keys())
 
     model.load_state_dict(
-        # torch.load('/home/stefano/PyCharmProjects/deep-high-resolution-net.pytorch/models/pose_hrnet_w48_384x288.pth')
-        torch.load('/home/stefano/PyCharmProjects/deep-high-resolution-net.pytorch/models/pose_hrnet_w32_256x192.pth')
+        # torch.load('./weights/pose_hrnet_w48_384x288.pth')
+        torch.load('./weights/pose_hrnet_w32_256x192.pth')
     )
     print('ok!!')
 

@@ -25,7 +25,7 @@ This repository provides:
 import cv2
 from SimpleHRNet import SimpleHRNet
 
-model = SimpleHRNet(48, 17, "./pretrained_weights/pose_hrnet_w48_384x288.pth")
+model = SimpleHRNet(48, 17, "./weights/pose_hrnet_w48_384x288.pth")
 image = cv2.imread("image.png", cv2.IMREAD_COLOR)
 
 joints = hrnet.predict(image)
@@ -46,7 +46,7 @@ python scripts/live-demo.py --filename video.mp4
 
 - Install the required packages    
  ``pip install -r requirements.txt``
-- Download official pre-trained weights from 
+- Download the official pre-trained weights from 
 [https://github.com/leoxiaobin/deep-high-resolution-net.pytorch](https://github.com/leoxiaobin/deep-high-resolution-net.pytorch)
 - For multi-person support:
     - Clone
@@ -65,6 +65,6 @@ in the folder ``./models/detectors`` and change the folder name from ``PyTorch-Y
         │    └── yolo               (PyTorch-YOLOv3 repository)
         │      ├── ...
         │      └── weights          (YOLOv3 weights)
-        ├── pretrained_weights      (HRnet weights)
+        ├── weights                 (HRnet weights)
         └── scripts                 (scripts)
         ```
