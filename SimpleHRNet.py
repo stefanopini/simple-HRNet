@@ -110,6 +110,7 @@ class SimpleHRNet:
                 Each joint has 3 values: (x position, y position, joint confidence)
         """
         if not self.multiperson:
+            old_res = image.shape
             if self.resolution is not None:
                 image = cv2.resize(
                     image,
@@ -117,8 +118,8 @@ class SimpleHRNet:
                     interpolation=self.interpolation
                 )
 
-            images = self.transform(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
-            boxes = np.asarray([[0, 0, image.shape[1], image.shape[0]]], dtype=np.float32)  # [x1, y1, x2, y2]
+            images = self.transform(cv2.cvtColor(image, cv2.COLOR_BGR2RGB)).unsqueeze(dim=0)
+            boxes = np.asarray([[0, 0, old_res[1], old_res[0]]], dtype=np.float32)  # [x1, y1, x2, y2]
 
         else:
             detections = self.detector.predict_single(image)
@@ -140,7 +141,7 @@ class SimpleHRNet:
 
             boxes = np.asarray(boxes, dtype=np.int32)
 
-        if not self.multiperson or images.shape[0] > 0:
+        if images.shape[0] > 0:
             images = images.to(self.device)
 
             with torch.no_grad():

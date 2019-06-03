@@ -1,14 +1,16 @@
 import os
+import sys
 import argparse
 import cv2
 import numpy as np
 import torch
 from SimpleHRNet import SimpleHRNet
 from misc.utils import draw_points, draw_skeleton, draw_points_and_skeleton, joints_dict
+from vidgear.gears import CamGear
 
 
 def main(camera_id, filename, hrnet_c, hrnet_j, hrnet_weights, hrnet_joints_set, single_person,
-         max_batch_size, device):
+         max_batch_size, disable_vidgear, device):
     if device is not None:
         device = torch.device(device)
     else:
@@ -20,13 +22,17 @@ def main(camera_id, filename, hrnet_c, hrnet_j, hrnet_weights, hrnet_joints_set,
 
     print(device)
 
-    has_display = 'DISPLAY' in os.environ.keys()
+    has_display = 'DISPLAY' in os.environ.keys() or sys.platform == 'win32'
 
     if filename is not None:
         video = cv2.VideoCapture(filename)
+        assert video.isOpened()
     else:
-        video = cv2.VideoCapture(camera_id)
-    assert video.isOpened()
+        if disable_vidgear:
+            video = cv2.VideoCapture(camera_id)
+            assert video.isOpened()
+        else:
+            video = CamGear(camera_id).start()
 
     model = SimpleHRNet(
         hrnet_c,
@@ -38,10 +44,14 @@ def main(camera_id, filename, hrnet_c, hrnet_j, hrnet_weights, hrnet_joints_set,
     )
 
     while True:
-        ret, frame = video.read()
-
-        if not ret:
-            break
+        if disable_vidgear:
+            ret, frame = video.read()
+            if not ret:
+                break
+        else:
+            frame = video.read()
+            if frame is None:
+                break
 
         pts = model.predict(frame)
 
@@ -52,7 +62,13 @@ def main(camera_id, filename, hrnet_c, hrnet_j, hrnet_weights, hrnet_joints_set,
 
         if has_display:
             cv2.imshow('frame.png', frame)
-            cv2.waitKey(1)
+            k = cv2.waitKey(1)
+            if k == 27:  # Esc button
+                if disable_vidgear:
+                    video.release()
+                else:
+                    video.stop()
+                break
         else:
             cv2.imwrite('frame.png', frame)
 
@@ -74,6 +90,9 @@ if __name__ == '__main__':
                              "multiperson detection)",
                         action="store_true")
     parser.add_argument("--max_batch_size", help="maximum batch size used for inference", type=int, default=16)
+    parser.add_argument("--disable_vidgear",
+                        help="disable vidgear (which is used for slightly better realtime performance)",
+                        action="store_true")  # see https://pypi.org/project/vidgear/
     parser.add_argument("--device", help="device to be used (default: cuda, if available)", type=str, default=None)
     args = parser.parse_args()
     main(**args.__dict__)
