@@ -44,7 +44,7 @@ def main(camera_id, filename, hrnet_c, hrnet_j, hrnet_weights, hrnet_joints_set,
     )
 
     while True:
-        if disable_vidgear:
+        if filename is not None or disable_vidgear:
             ret, frame = video.read()
             if not ret:
                 break

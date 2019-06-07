@@ -1,9 +1,14 @@
 from __future__ import division
 
+import os
+import sys
 import cv2
 import numpy as np
 import torch
 from torchvision.transforms import transforms
+
+sys.path.append(os.path.join(os.getcwd(), 'models', 'detectors', 'yolo'))
+
 from .yolo.models import Darknet
 from .yolo.utils.utils import load_classes, non_max_suppression
 
