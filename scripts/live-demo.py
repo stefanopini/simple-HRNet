@@ -2,11 +2,12 @@ import os
 import sys
 import argparse
 import cv2
-import numpy as np
 import torch
+from vidgear.gears import CamGear
+
+sys.path.insert(1, os.getcwd())
 from SimpleHRNet import SimpleHRNet
 from misc.utils import draw_points, draw_skeleton, draw_points_and_skeleton, joints_dict
-from vidgear.gears import CamGear
 
 
 def main(camera_id, filename, hrnet_c, hrnet_j, hrnet_weights, hrnet_joints_set, single_person,
