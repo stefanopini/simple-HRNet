@@ -68,7 +68,7 @@ class SimpleHRNet:
         self.device = device
 
         self.model = HRNet(c=c, nof_joints=nof_joints).to(device)
-        self.model.load_state_dict(torch.load(checkpoint_path))
+        self.model.load_state_dict(torch.load(checkpoint_path, map_location=self.device))
         self.model.eval()
 
         if not self.multiperson:
