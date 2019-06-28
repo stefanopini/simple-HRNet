@@ -85,6 +85,7 @@ class YOLOv3:
                  nms_thres=0.4,
                  img_size=416,
                  classes=None,
+                 max_batch_size=16,
                  device=torch.device('cpu')):
 
         self.model_def = model_def
@@ -93,6 +94,7 @@ class YOLOv3:
         self.conf_thres = conf_thres
         self.nms_thres = nms_thres
         self.img_size = img_size
+        self.max_batch_size = max_batch_size
         self.device = device
 
         # Set up model
@@ -116,13 +118,20 @@ class YOLOv3:
                 self.classes_id.append(i)
 
     def predict_single(self, image, color_mode='BGR'):
-        return self.predict(np.asarray([image], dtype=image.dtype), color_mode=color_mode)[0]
+        return self.predict(np.expand_dims(image.copy(), axis=0), color_mode=color_mode)[0]
 
     def predict(self, images, color_mode='BGR'):
-        images_rescaled = prepare_data(images, color_mode=color_mode)
+        images_rescaled = prepare_data(images.copy(), color_mode=color_mode)
         with torch.no_grad():
             images_rescaled = images_rescaled.to(self.device)
-            detections = self.model(images_rescaled)
+
+            if len(images_rescaled) <= self.max_batch_size:
+                detections = self.model(images_rescaled)
+            else:
+                detections = torch.empty((images_rescaled.shape[0], 10647, 85)).to(self.device)
+                for i in range(0, len(images_rescaled), self.max_batch_size):
+                    detections[i:i + self.max_batch_size] = self.model(images_rescaled[i:i + self.max_batch_size]).detach()
+
             detections = non_max_suppression(detections, self.conf_thres, self.nms_thres)
             for i in range(len(images)):
                 if detections[i] is not None:
