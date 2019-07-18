@@ -1,6 +1,7 @@
 import os
 import sys
 import argparse
+import ast
 import cv2
 import torch
 from vidgear.gears import CamGear
@@ -10,7 +11,7 @@ from SimpleHRNet import SimpleHRNet
 from misc.utils import draw_points, draw_skeleton, draw_points_and_skeleton, joints_dict
 
 
-def main(camera_id, filename, hrnet_c, hrnet_j, hrnet_weights, hrnet_joints_set, single_person,
+def main(camera_id, filename, hrnet_c, hrnet_j, hrnet_weights, hrnet_joints_set, image_resolution, single_person,
          max_batch_size, disable_vidgear, device):
     if device is not None:
         device = torch.device(device)
@@ -23,6 +24,7 @@ def main(camera_id, filename, hrnet_c, hrnet_j, hrnet_weights, hrnet_joints_set,
 
     print(device)
 
+    image_resolution = ast.literal_eval(image_resolution)
     has_display = 'DISPLAY' in os.environ.keys() or sys.platform == 'win32'
 
     if filename is not None:
@@ -39,6 +41,7 @@ def main(camera_id, filename, hrnet_c, hrnet_j, hrnet_weights, hrnet_joints_set,
         hrnet_c,
         hrnet_j,
         hrnet_weights,
+        resolution=image_resolution,
         multiperson=not single_person,
         max_batch_size=max_batch_size,
         device=device
@@ -86,6 +89,7 @@ if __name__ == '__main__':
     parser.add_argument("--hrnet_joints_set",
                         help="use the specified set of joints ('coco' and 'mpii' are currently supported)",
                         type=str, default="coco")
+    parser.add_argument("--image_resolution", "-r", help="image resolution", type=str, default='(384, 288)')
     parser.add_argument("--single_person",
                         help="disable the multiperson detection (YOLOv3 or an equivalen detector is required for"
                              "multiperson detection)",
