@@ -8,7 +8,7 @@ from vidgear.gears import CamGear
 
 sys.path.insert(1, os.getcwd())
 from SimpleHRNet import SimpleHRNet
-from misc.utils import draw_points, draw_skeleton, draw_points_and_skeleton, joints_dict
+from misc.visualization import draw_points, draw_skeleton, draw_points_and_skeleton, joints_dict
 
 
 def main(camera_id, filename, hrnet_c, hrnet_j, hrnet_weights, hrnet_joints_set, image_resolution, single_person,
@@ -61,8 +61,8 @@ def main(camera_id, filename, hrnet_c, hrnet_j, hrnet_weights, hrnet_joints_set,
 
         for i, pt in enumerate(pts):
             frame = draw_points_and_skeleton(frame, pt, joints_dict()[hrnet_joints_set]['skeleton'], person_index=i,
-                                             joints_color_palette='gist_rainbow', skeleton_color_palette='jet',
-                                             joints_palette_samples=10)
+                                             points_color_palette='gist_rainbow', skeleton_color_palette='jet',
+                                             points_palette_samples=10)
 
         if has_display:
             cv2.imshow('frame.png', frame)

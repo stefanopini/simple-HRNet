@@ -33,7 +33,7 @@ class SimpleHRNet:
         HRNet (and YOLOv3) are initialized on the torch.device("device") and
         its (their) pre-trained weights will be loaded from disk.
 
-        Arguments:
+        Args:
             c (int): number of channels.
             nof_joints (int): number of joints.
             checkpoint_path (str): hrnet checkpoint path.
@@ -99,7 +99,7 @@ class SimpleHRNet:
         """
         Predicts the human pose on a single image.
 
-        Arguments:
+        Args:
             image (:class:`np.ndarray`):
                 the image(s) on which the human pose will be estimated.
 

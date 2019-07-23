@@ -1,122 +1,33 @@
+import math
 import cv2
 import numpy as np
-import matplotlib.pyplot as plt
+import torch
 
 
-def joints_dict():
-    joints = {
-        "coco": {
-            "keypoints": {
-                0: "nose",
-                1: "left_eye",
-                2: "right_eye",
-                3: "left_ear",
-                4: "right_ear",
-                5: "left_shoulder",
-                6: "right_shoulder",
-                7: "left_elbow",
-                8: "right_elbow",
-                9: "left_wrist",
-                10: "right_wrist",
-                11: "left_hip",
-                12: "right_hip",
-                13: "left_knee",
-                14: "right_knee",
-                15: "left_ankle",
-                16: "right_ankle"
-            },
-            "skeleton": [
-                # # [16, 14], [14, 12], [17, 15], [15, 13], [12, 13], [6, 12], [7, 13], [6, 7], [6, 8],
-                # # [7, 9], [8, 10], [9, 11], [2, 3], [1, 2], [1, 3], [2, 4], [3, 5], [4, 6], [5, 7]
-                # [15, 13], [13, 11], [16, 14], [14, 12], [11, 12], [5, 11], [6, 12], [5, 6], [5, 7],
-                # [6, 8], [7, 9], [8, 10], [1, 2], [0, 1], [0, 2], [1, 3], [2, 4], [3, 5], [4, 6]
-                [15, 13], [13, 11], [16, 14], [14, 12], [11, 12], [5, 11], [6, 12], [5, 6], [5, 7],
-                [6, 8], [7, 9], [8, 10], [1, 2], [0, 1], [0, 2], [1, 3], [2, 4],  # [3, 5], [4, 6]
-                [0, 5], [0, 6]
-            ]
-        },
-        "mpii": {
-            "keypoints": {
-                0: "right_ankle",
-                1: "right_knee",
-                2: "right_hip",
-                3: "left_hip",
-                4: "left_knee",
-                5: "left_ankle",
-                6: "pelvis",
-                7: "thorax",
-                8: "upper_neck",
-                9: "head top",
-                10: "right_wrist",
-                11: "right_elbow",
-                12: "right_shoulder",
-                13: "left_shoulder",
-                14: "left_elbow",
-                15: "left_wrist"
-            },
-            "skeleton": [
-                # [5, 4], [4, 3], [0, 1], [1, 2], [3, 2], [13, 3], [12, 2], [13, 12], [13, 14],
-                # [12, 11], [14, 15], [11, 10], # [2, 3], [1, 2], [1, 3], [2, 4], [3, 5], [4, 6], [5, 7]
-                [5, 4], [4, 3], [0, 1], [1, 2], [3, 2], [3, 6], [2, 6], [6, 7], [7, 8], [8, 9],
-                [13, 7], [12, 7], [13, 14], [12, 11], [14, 15], [11, 10],
-            ]
-        },
-    }
-    return joints
+# solution proposed in https://github.com/pytorch/pytorch/issues/229#issuecomment-299424875 
+def flip_tensor(tensor, dim=0):
+    """
+    flip the tensor on the dimension dim
+    """
+    inv_idx = torch.arange(tensor.shape[dim] - 1, -1, -1).to(tensor.device)
+    return tensor.index_select(dim, inv_idx)
 
 
-def draw_points(image, points, color_palette='tab20', palette_samples=16):
-    try:
-        colors = np.round(
-            np.array(plt.get_cmap(color_palette).colors) * 255
-        ).astype(np.uint8)[:, ::-1].tolist()
-    except AttributeError:  # if palette has not pre-defined colors
-        colors = np.round(
-            np.array(plt.get_cmap(color_palette)(np.linspace(0, 1, palette_samples))) * 255
-        ).astype(np.uint8)[:, -2::-1].tolist()
-
-    circle_size = max(1, min(image.shape[:2]) // 160)  # ToDo Shape it taking into account the size of the detection
-    # circle_size = max(2, int(np.sqrt(np.max(np.max(points, axis=0) - np.min(points, axis=0)) // 16)))
-
-    for i, pt in enumerate(points):
-        if pt[2] > 0.5:
-            image = cv2.circle(image, (int(pt[1]), int(pt[0])), circle_size, tuple(colors[i % len(colors)]), -1)
-
-    return image
-
-
-def draw_skeleton(image, points, skeleton, color_palette='Set2', palette_samples=8, person_index=0):
-    try:
-        colors = np.round(
-            np.array(plt.get_cmap(color_palette).colors) * 255
-        ).astype(np.uint8)[:, ::-1].tolist()
-    except AttributeError:  # if palette has not pre-defined colors
-        colors = np.round(
-            np.array(plt.get_cmap(color_palette)(np.linspace(0, 1, palette_samples))) * 255
-        ).astype(np.uint8)[:, -2::-1].tolist()
-
-    for i, joint in enumerate(skeleton):
-        pt1, pt2 = points[joint]
-        if pt1[2] > 0.5 and pt2[2] > 0.5:
-            image = cv2.line(
-                image, (int(pt1[1]), int(pt1[0])), (int(pt2[1]), int(pt2[0])),
-                tuple(colors[person_index % len(colors)]), 2
-            )
-
-    return image
-
-
-def draw_points_and_skeleton(image, points, skeleton, joints_color_palette='tab20', joints_palette_samples=16,
-                             skeleton_color_palette='Set2', skeleton_palette_samples=8, person_index=0):
-    image = draw_skeleton(image, points, skeleton, color_palette=skeleton_color_palette,
-                          palette_samples=skeleton_palette_samples, person_index=person_index)
-    image = draw_points(image, points, color_palette=joints_color_palette, palette_samples=joints_palette_samples)
-    return image
-
-
-#
 #
 # derived from https://github.com/leoxiaobin/deep-high-resolution-net.pytorch
+def flip_back(output_flipped, matched_parts):
+    assert len(output_flipped.shape) == 4, 'output_flipped has to be [batch_size, num_joints, height, width]'
+
+    output_flipped = flip_tensor(output_flipped, dim=-1)
+
+    for pair in matched_parts:
+        tmp = output_flipped[:, pair[0]].clone()
+        output_flipped[:, pair[0]] = output_flipped[:, pair[1]]
+        output_flipped[:, pair[1]] = tmp
+
+    return output_flipped
+
+
 def fliplr_joints(joints, joints_vis, width, matched_parts):
     # Flip horizontal
     joints[:, 0] = width - joints[:, 0] - 1
@@ -128,7 +39,7 @@ def fliplr_joints(joints, joints_vis, width, matched_parts):
         joints_vis[pair[0], :], joints_vis[pair[1], :] = \
             joints_vis[pair[1], :], joints_vis[pair[0], :].copy()
 
-    return joints*joints_vis, joints_vis
+    return joints * joints_vis, joints_vis
 
 
 def get_affine_transform(center, scale, pixel_std, rot, output_size, shift=np.array([0, 0], dtype=np.float32), inv=0):
@@ -193,5 +104,142 @@ def crop(img, center, scale, pixel_std, output_size, rot=0):
     )
 
     return dst_img
+
+
+#
+#
+
+
+#
+# derived from https://github.com/leoxiaobin/deep-high-resolution-net.pytorch
+def transform_preds(coords, center, scale, pixel_std, output_size):
+    coords = coords.detach().cpu().numpy()
+    target_coords = np.zeros(coords.shape, dtype=np.float32)
+    trans = get_affine_transform(center, scale, pixel_std, 0, output_size, inv=1)
+    for p in range(coords.shape[0]):
+        target_coords[p, 0:2] = affine_transform(coords[p, 0:2], trans)
+    return torch.from_numpy(target_coords)
+
+
+def get_max_preds(batch_heatmaps):
+    """
+    get predictions from score maps
+    heatmaps: numpy.ndarray([batch_size, num_joints, height, width])
+    """
+    # assert isinstance(batch_heatmaps, np.ndarray), 'batch_heatmaps should be numpy.ndarray'
+    assert isinstance(batch_heatmaps, torch.Tensor), 'batch_heatmaps should be torch.Tensor'
+    assert len(batch_heatmaps.shape) == 4, 'batch_images should be 4-ndim'
+
+    batch_size = batch_heatmaps.shape[0]
+    num_joints = batch_heatmaps.shape[1]
+    width = batch_heatmaps.shape[3]
+    heatmaps_reshaped = batch_heatmaps.reshape(batch_size, num_joints, -1)
+    maxvals, idx = torch.max(heatmaps_reshaped, dim=2)
+
+    maxvals = maxvals.unsqueeze(dim=-1)
+    idx = idx.float()
+
+    preds = torch.zeros((batch_size, num_joints, 2)).to(batch_heatmaps.device)
+
+    preds[:, :, 0] = idx % width  # column
+    preds[:, :, 1] = torch.floor(idx / width)  # row
+
+    pred_mask = torch.gt(maxvals, 0.0).repeat(1, 1, 2).float().to(batch_heatmaps.device)
+
+    preds *= pred_mask
+    return preds, maxvals
+
+
+def get_final_preds(post_processing, batch_heatmaps, center, scale, pixel_std):
+    coords, maxvals = get_max_preds(batch_heatmaps)
+
+    heatmap_height = batch_heatmaps.shape[2]
+    heatmap_width = batch_heatmaps.shape[3]
+
+    # post-processing
+    if post_processing:
+        for n in range(coords.shape[0]):
+            for p in range(coords.shape[1]):
+                hm = batch_heatmaps[n][p]
+                px = int(math.floor(coords[n][p][0] + 0.5))
+                py = int(math.floor(coords[n][p][1] + 0.5))
+                if 1 < px < heatmap_width - 1 and 1 < py < heatmap_height - 1:
+                    diff = torch.tensor(
+                        [
+                            hm[py][px + 1] - hm[py][px - 1],
+                            hm[py + 1][px] - hm[py - 1][px]
+                        ]
+                    ).to(batch_heatmaps.device)
+                    coords[n][p] += torch.sign(diff) * .25
+
+    preds = coords.clone()
+
+    # Transform back
+    for i in range(coords.shape[0]):
+        preds[i] = transform_preds(coords[i], center[i], scale[i], pixel_std, [heatmap_width, heatmap_height])
+
+    return preds, maxvals
+
+
+def calc_dists(preds, target, normalize):
+    preds = preds.type(torch.float32)
+    target = target.type(torch.float32)
+    dists = torch.zeros((preds.shape[1], preds.shape[0])).to(preds.device)
+    for n in range(preds.shape[0]):
+        for c in range(preds.shape[1]):
+            if target[n, c, 0] > 1 and target[n, c, 1] > 1:
+                normed_preds = preds[n, c, :] / normalize[n]
+                normed_targets = target[n, c, :] / normalize[n]
+                # # dists[c, n] = np.linalg.norm(normed_preds - normed_targets)
+                dists[c, n] = torch.norm(normed_preds - normed_targets)
+            else:
+                dists[c, n] = -1
+    return dists
+
+
+def dist_acc(dists, thr=0.5):
+    """
+    Return percentage below threshold while ignoring values with a -1
+    """
+    dist_cal = torch.ne(dists, -1)
+    num_dist_cal = dist_cal.sum()
+    if num_dist_cal > 0:
+        return torch.lt(dists[dist_cal], thr).float().sum() / num_dist_cal
+    else:
+        return -1
+
+
+def evaluate_pck_accuracy(output, target, hm_type='gaussian', thr=0.5):
+    """
+    Calculate accuracy according to PCK,
+    but uses ground truth heatmap rather than x,y locations
+    First value to be returned is average accuracy across 'idxs',
+    followed by individual accuracies
+    """
+    idx = list(range(output.shape[1]))
+    if hm_type == 'gaussian':
+        pred, _ = get_max_preds(output)
+        target, _ = get_max_preds(target)
+        h = output.shape[2]
+        w = output.shape[3]
+        norm = torch.ones((pred.shape[0], 2)) * torch.tensor([h, w],
+                                                             dtype=torch.float32) / 10  # Why they divide this by 10?
+        norm = norm.to(output.device)
+    else:
+        raise NotImplementedError
+    dists = calc_dists(pred, target, norm)
+
+    acc = torch.zeros(len(idx)).to(dists.device)
+    avg_acc = 0
+    cnt = 0
+
+    for i in range(len(idx)):
+        acc[i] = dist_acc(dists[idx[i]], thr=thr)
+        if acc[i] >= 0:
+            avg_acc = avg_acc + acc[i]
+            cnt += 1
+
+    avg_acc = avg_acc / cnt if cnt != 0 else 0
+    return acc, avg_acc, cnt, pred, target
 #
 #

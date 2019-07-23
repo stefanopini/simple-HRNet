@@ -1,25 +1,34 @@
+# Part of this code is derived/taken from https://github.com/leoxiaobin/deep-high-resolution-net.pytorch
 import os
-import cv2
-import numpy as np
-from torch.utils.data import Dataset
-from torchvision import transforms
-from misc.utils import fliplr_joints, affine_transform, get_affine_transform
 import pickle
 import random
+from collections import OrderedDict
+from collections import defaultdict
+
+import cv2
+import json_tricks as json
+import numpy as np
+from pycocotools.coco import COCO
+from pycocotools.cocoeval import COCOeval
+from torchvision import transforms
 from tqdm import tqdm
 
-from pycocotools.coco import COCO
+from misc.nms.nms import oks_nms
+from misc.nms.nms import soft_oks_nms
+from misc.utils import fliplr_joints, affine_transform, get_affine_transform, evaluate_pck_accuracy
+from .HumanPoseEstimation import HumanPoseEstimationDataset as Dataset
 
 
 class COCODataset(Dataset):
     """
     COCODataset class.
     """
+
     def __init__(self,
                  root_path="./datasets/COCO", data_version="train2017", is_train=True, use_gt_bboxes=True, bbox_path="",
                  image_width=288, image_height=384, color_rgb=True,
                  scale=True, scale_factor=0.35, flip_prob=0.5, rotate_prob=0.5, rotation_factor=45., half_body_prob=0.3,
-                 use_different_joints_weight=False, heatmap_sigma=3
+                 use_different_joints_weight=False, heatmap_sigma=3, soft_nms=False,
                  ):
         """
         Initializes a new COCODataset object.
@@ -30,42 +39,45 @@ class COCODataset(Dataset):
         Bounding boxes can be loaded from the ground truth or from a pickle file (in this case, no annotations are
         provided).
 
-        Arguments:
+        Args:
             root_path (str): dataset root path.
-                Default: ``"./datasets/COCO"``
+                Default: "./datasets/COCO"
             data_version (str): desired version/folder of COCO. Possible options are "train2017", "val2017".
-                Default: ``"train2017"``
+                Default: "train2017"
             is_train (bool): train or eval mode. If true, train mode is used.
-                Default: ``True``
+                Default: True
             use_gt_bboxes (bool): use ground truth bounding boxes. If False, bbox_path is required.
-                Default: ``True``
+                Default: True
             bbox_path (str): bounding boxes pickle file path.
-                Default: ``""``
+                Default: ""
             image_width (int): image width.
-                Default: ``288``
+                Default: 288
             image_height (int): image height.
                 Default: ``384``
             color_rgb (bool): rgb or bgr color mode. If True, rgb color mode is used.
-                Default: ``True``
+                Default: True
             scale (bool): scale mode.
-                Default: ``True``
+                Default: True
             scale_factor (float): scale factor.
-                Default: ``0.35``
+                Default: 0.35
             flip_prob (float): flip probability.
-                Default: ``0.5``
+                Default: 0.5
             rotate_prob (float): rotate probability.
-                Default: ``0.5``
+                Default: 0.5
             rotation_factor (float): rotation factor.
-                Default: ``45.``
+                Default: 45.
             half_body_prob (float): half body probability.
-                Default: ``0.3``
+                Default: 0.3
             use_different_joints_weight (bool): use different joints weights.
                 If true, the following joints weights will be used:
                 [1., 1., 1., 1., 1., 1., 1., 1.2, 1.2, 1.5, 1.5, 1., 1., 1.2, 1.2, 1.5, 1.5]
-                Default: ``False``
+                Default: False
             heatmap_sigma (float): sigma of the gaussian used to create the heatmap.
-                Default: ``3``
+                Default: 3
+            soft_nms (bool): enable soft non-maximum suppression.
+                Default: False
         """
+        super(COCODataset, self).__init__()
 
         self.root_path = root_path
         self.data_version = data_version
@@ -83,6 +95,7 @@ class COCODataset(Dataset):
         self.half_body_prob = half_body_prob
         self.use_different_joints_weight = use_different_joints_weight  # ToDo Check
         self.heatmap_sigma = heatmap_sigma
+        self.soft_nms = soft_nms
 
         self.data_path = os.path.join(self.root_path, self.data_version)
         self.annotation_path = os.path.join(
@@ -140,8 +153,6 @@ class COCODataset(Dataset):
         # load annotations for each image of COCO
         for imgId in tqdm(self.imgIds):
 
-            #
-            # derived from https://github.com/leoxiaobin/deep-high-resolution-net.pytorch
             ann_ids = self.coco.getAnnIds(imgIds=imgId, iscrowd=False)
 
             img = self.coco.loadImgs(imgId)[0]
@@ -168,7 +179,7 @@ class COCODataset(Dataset):
 
                     # Use only valid bounding boxes
                     if obj['area'] > 0 and x2 >= x1 and y2 >= y1:
-                        obj['clean_bbox'] = [x1, y1, x2-x1, y2-y1]
+                        obj['clean_bbox'] = [x1, y1, x2 - x1, y2 - y1]
                         valid_objs.append(obj)
 
                 objs = valid_objs
@@ -215,16 +226,20 @@ class COCODataset(Dataset):
                     'joints': joints,
                     'joints_visibility': joints_visibility,
                 })
-            #
-            #
 
         # Done check if we need prepare_data -> We should not
         print('\nCOCO dataset loaded!')
 
-    def __len__(self,):
+        # Default values
+        self.bbox_thre = 1.0
+        self.image_thre = 0.0
+        self.in_vis_thre = 0.2
+        self.nms_thre = 1.0
+        self.oks_thre = 0.9
+
+    def __len__(self):
         return len(self.data)
 
-    # derived from https://github.com/leoxiaobin/deep-high-resolution-net.pytorch
     def __getitem__(self, index):
         joints_data = self.data[index].copy()
 
@@ -250,7 +265,7 @@ class COCODataset(Dataset):
             if self.half_body_prob and \
                     random.random() < self.half_body_prob and \
                     np.sum(joints_vis[:, 0]) > self.nof_joints_half_body:
-                c_half_body, s_half_body = self.half_body_transform(joints, joints_vis)
+                c_half_body, s_half_body = self._half_body_transform(joints, joints_vis)
 
                 if c_half_body is not None and s_half_body is not None:
                     c, s = c_half_body, s_half_body
@@ -259,7 +274,7 @@ class COCODataset(Dataset):
             rf = self.rotation_factor
 
             if self.scale:
-                s = s * np.clip(random.random()*sf + 1, 1 - sf, 1 + sf)  # A random scale factor in [1-sf, 1+sf]
+                s = s * np.clip(random.random() * sf + 1, 1 - sf, 1 + sf)  # A random scale factor in [1 - sf, 1 + sf]
 
             if self.rotate_prob and random.random() < self.rotate_prob:
                 r = np.clip(random.random() * rf, -rf * 2, rf * 2)  # A random rotation factor in [-2 * rf, 2 * rf]
@@ -288,7 +303,7 @@ class COCODataset(Dataset):
         if self.transform is not None:  # I could remove this check
             image = self.transform(image)
 
-        target, target_weight = self.generate_target(joints, joints_vis)
+        target, target_weight = self._generate_target(joints, joints_vis)
 
         # Update metadata
         joints_data['joints'] = joints
@@ -300,9 +315,82 @@ class COCODataset(Dataset):
 
         return image, target.astype(np.float32), target_weight.astype(np.float32), joints_data
 
-    #
-    #
-    # derived from https://github.com/leoxiaobin/deep-high-resolution-net.pytorch
+    def evaluate_accuracy(self, output, target, params=None):
+        if params is not None:
+            hm_type = params['hm_type']
+            thr = params['thr']
+            accs, avg_acc, cnt, joints_preds, joints_target = evaluate_pck_accuracy(output, target, hm_type, thr)
+        else:
+            accs, avg_acc, cnt, joints_preds, joints_target = evaluate_pck_accuracy(output, target)
+
+        return accs, avg_acc, cnt, joints_preds, joints_target
+
+    def evaluate_overall_accuracy(self, predictions, bounding_boxes, image_paths, output_dir, rank=0.):
+
+        res_folder = os.path.join(output_dir, 'results')
+        if not os.path.exists(res_folder):
+            os.makedirs(res_folder, 0o755, exist_ok=True)
+
+        res_file = os.path.join(res_folder, 'keypoints_{}_results_{}.json'.format(self.data_version, rank))
+
+        # person x (keypoints)
+        _kpts = []
+        for idx, kpt in enumerate(predictions):
+            _kpts.append({
+                'keypoints': kpt,
+                'center': bounding_boxes[idx][0:2],
+                'scale': bounding_boxes[idx][2:4],
+                'area': bounding_boxes[idx][4],
+                'score': bounding_boxes[idx][5],
+                'image': int(image_paths[idx][-16:-4])
+            })
+
+        # image x person x (keypoints)
+        kpts = defaultdict(list)
+        for kpt in _kpts:
+            kpts[kpt['image']].append(kpt)
+
+        # rescoring and oks nms
+        num_joints = self.nof_joints
+        in_vis_thre = self.in_vis_thre
+        oks_thre = self.oks_thre
+        oks_nmsed_kpts = []
+        for img in kpts.keys():
+            img_kpts = kpts[img]
+            for n_p in img_kpts:
+                box_score = n_p['score']
+                kpt_score = 0
+                valid_num = 0
+                for n_jt in range(0, num_joints):
+                    t_s = n_p['keypoints'][n_jt][2]
+                    if t_s > in_vis_thre:
+                        kpt_score = kpt_score + t_s
+                        valid_num = valid_num + 1
+                if valid_num != 0:
+                    kpt_score = kpt_score / valid_num
+                # rescoring
+                n_p['score'] = kpt_score * box_score
+
+            if self.soft_nms:
+                keep = soft_oks_nms([img_kpts[i] for i in range(len(img_kpts))], oks_thre)
+            else:
+                keep = oks_nms([img_kpts[i] for i in range(len(img_kpts))], oks_thre)
+
+            if len(keep) == 0:
+                oks_nmsed_kpts.append(img_kpts)
+            else:
+                oks_nmsed_kpts.append([img_kpts[_keep] for _keep in keep])
+
+        self._write_coco_keypoint_results(oks_nmsed_kpts, res_file)
+        if 'test' not in self.data_version:
+            info_str = self._do_python_keypoint_eval(res_file)
+            name_value = OrderedDict(info_str)
+            return name_value, name_value['AP']
+        else:
+            return {'Null': 0}, 0
+
+    # Private methods
+
     def _box2cs(self, box):
         x, y, w, h = box[:4]
         return self._xywh2cs(x, y, w, h)
@@ -324,7 +412,7 @@ class COCODataset(Dataset):
 
         return center, scale
 
-    def half_body_transform(self, joints, joints_vis):
+    def _half_body_transform(self, joints, joints_vis):
         upper_joints = []
         lower_joints = []
         for joint_id in range(self.nof_joints):
@@ -369,7 +457,7 @@ class COCODataset(Dataset):
 
         return center, scale
 
-    def generate_target(self, joints, joints_vis):
+    def _generate_target(self, joints, joints_vis):
         """
         :param joints:  [nof_joints, 3]
         :param joints_vis: [nof_joints, 3]
@@ -425,8 +513,79 @@ class COCODataset(Dataset):
             target_weight = np.multiply(target_weight, self.joints_weight)
 
         return target, target_weight
-    #
-    #
+
+    def _write_coco_keypoint_results(self, keypoints, res_file):
+        data_pack = [
+            {
+                'cat_id': 1,  # 1 == 'person'
+                'cls': 'person',
+                'ann_type': 'keypoints',
+                'keypoints': keypoints
+            }
+        ]
+
+        results = self._coco_keypoint_results_one_category_kernel(data_pack[0])
+        with open(res_file, 'w') as f:
+            json.dump(results, f, sort_keys=True, indent=4)
+        try:
+            json.load(open(res_file))
+        except Exception:
+            content = []
+            with open(res_file, 'r') as f:
+                for line in f:
+                    content.append(line)
+            content[-1] = ']'
+            with open(res_file, 'w') as f:
+                for c in content:
+                    f.write(c)
+
+    def _coco_keypoint_results_one_category_kernel(self, data_pack):
+        cat_id = data_pack['cat_id']
+        keypoints = data_pack['keypoints']
+        cat_results = []
+
+        for img_kpts in keypoints:
+            if len(img_kpts) == 0:
+                continue
+
+            _key_points = np.array([img_kpts[k]['keypoints'] for k in range(len(img_kpts))], dtype=np.float32)
+            key_points = np.zeros((_key_points.shape[0], self.nof_joints * 3), dtype=np.float32)
+
+            for ipt in range(self.nof_joints):
+                key_points[:, ipt * 3 + 0] = _key_points[:, ipt, 0]
+                key_points[:, ipt * 3 + 1] = _key_points[:, ipt, 1]
+                key_points[:, ipt * 3 + 2] = _key_points[:, ipt, 2]  # keypoints score.
+
+            result = [
+                {
+                    'image_id': img_kpts[k]['image'],
+                    'category_id': cat_id,
+                    'keypoints': list(key_points[k]),
+                    'score': img_kpts[k]['score'].astype(np.float32),
+                    'center': list(img_kpts[k]['center']),
+                    'scale': list(img_kpts[k]['scale'])
+                }
+                for k in range(len(img_kpts))
+            ]
+            cat_results.extend(result)
+
+        return cat_results
+
+    def _do_python_keypoint_eval(self, res_file):
+        coco_dt = self.coco.loadRes(res_file)
+        coco_eval = COCOeval(self.coco, coco_dt, 'keypoints')
+        coco_eval.params.useSegm = None
+        coco_eval.evaluate()
+        coco_eval.accumulate()
+        coco_eval.summarize()
+
+        stats_names = ['AP', 'Ap .5', 'AP .75', 'AP (M)', 'AP (L)', 'AR', 'AR .5', 'AR .75', 'AR (M)', 'AR (L)']
+
+        info_str = []
+        for ind, name in enumerate(stats_names):
+            info_str.append((name, coco_eval.stats[ind]))
+
+        return info_str
 
 
 if __name__ == '__main__':
