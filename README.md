@@ -28,7 +28,7 @@ from SimpleHRNet import SimpleHRNet
 model = SimpleHRNet(48, 17, "./weights/pose_hrnet_w48_384x288.pth")
 image = cv2.imread("image.png", cv2.IMREAD_COLOR)
 
-joints = hrnet.predict(image)
+joints = model.predict(image)
 ```
 
 #### Running the live demo
