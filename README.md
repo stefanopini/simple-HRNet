@@ -1,4 +1,4 @@
-## Multi-person Human Pose Estimation with HRNet in Pytorch
+## Multi-person Human Pose Estimation with HRNet in PyTorch
 
 This is an unofficial implementation of the paper
  [*Deep High-Resolution Representation Learning for Human Pose Estimation*](https://arxiv.org/abs/1902.09212).  
@@ -11,7 +11,7 @@ The code is fully compatible with the
 
 
 This repository provides:
-- A simple ``HRNet`` implementation in Pytorch (>=1.0) - compatible with official weights.
+- A simple ``HRNet`` implementation in PyTorch (>=1.0) - compatible with official weights.
 - A simple class (``SimpleHRNet``) that loads the HRNet network for the human pose estimation, loads the pre-trained weights,
  and make human predictions on a single image or a batch of images.
 - Multi-person support with
