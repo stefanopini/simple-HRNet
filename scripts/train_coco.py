@@ -1,11 +1,14 @@
 import argparse
 import ast
+import os
 import random
+import sys
 from datetime import datetime
 
 import numpy as np
 import torch
 
+sys.path.insert(1, os.getcwd())
 from datasets.COCO import COCODataset
 from training.COCO import COCOTrain
 

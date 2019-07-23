@@ -18,6 +18,8 @@ This repository provides:
  [YOLOv3](https://github.com/eriklindernoren/PyTorch-YOLOv3/tree/47b7c912877ca69db35b8af3a38d6522681b3bb3) 
  (enabled by default).  
 - A reference code that runs a live demo reading frames from a webcam or a video file.
+- A relatively-simple code for training and testing the HRNet network.
+- A specific script for training the network on the COCO dataset. 
  
 #### Class usage
 
@@ -33,13 +35,29 @@ joints = model.predict(image)
 
 #### Running the live demo
 
-From a connected camera
+From a connected camera:
 ```
 python scripts/live-demo.py --camera_id 0
 ```
-From a saved video
+From a saved video:
 ```
 python scripts/live-demo.py --filename video.mp4
+```
+
+For help:
+```
+python scripts/live-demo.py --help
+```
+
+#### Running the training script
+
+```
+python scripts/train_coco.py
+```
+
+For help:
+```
+python scripts/train_coco.py --help
 ```
 
 #### Requirements
@@ -55,16 +73,22 @@ in the folder ``./models/detectors`` and change the folder name from ``PyTorch-Y
     - Install YOLOv3 required packages  
        ``pip install -r requirements.txt``
     - Download the pre-trained weights running the script ``download_weights.sh`` from the ``weights`` folder
+    - (Optional) Download the [COCO dataset](http://cocodataset.org/#download) and save it in ``./datasets/COCO``
     - Your folders should look like:
         ```
         simple-HRNet
-        ├── datasets                (unused)
+        ├── datasets                (datasets - for training only)
+        │  └── COCO                 (COCO dataset)
+        ├── losses                  (loss functions)
         ├── misc                    (misc)
+        │  └── nms                  (CUDA nms module - for training only)
         ├── models                  (pytorch models)
         │  └── detectors            (people detectors)
         │    └── yolo               (PyTorch-YOLOv3 repository)
         │      ├── ...
         │      └── weights          (YOLOv3 weights)
-        ├── weights                 (HRnet weights)
-        └── scripts                 (scripts)
+        ├── scripts                 (scripts)
+        ├── testing                 (testing code)
+        ├── training                (training code)
+        └── weights                 (HRnet weights)
         ```
