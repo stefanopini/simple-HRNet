@@ -178,9 +178,6 @@ class Train(object):
         else:
             raise NotImplementedError
 
-        if lr_decay:
-            self.lr_scheduler = MultiStepLR(self.optim, list(self.lr_decay_steps), gamma=self.lr_decay_gamma)
-
         #
         # load pre-trained weights (such as those pre-trained on imagenet)
         if self.pretrained_weight_path is not None:
@@ -198,6 +195,10 @@ class Train(object):
                                                                                        self.device)
         else:
             self.starting_epoch = 0
+
+        if lr_decay:
+            self.lr_scheduler = MultiStepLR(self.optim, list(self.lr_decay_steps), gamma=self.lr_decay_gamma,
+                                            last_epoch=self.starting_epoch)
 
         #
         # load train and val datasets
@@ -351,14 +352,14 @@ class Train(object):
             self._val()
 
             #
-            # Checkpoint
-
-            self._checkpoint()
-
-            #
             # LR Update
 
             if self.lr_decay:
                 self.lr_scheduler.step()
+
+            #
+            # Checkpoint
+
+            self._checkpoint()
 
         print('\nTraining ended @ %s' % datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
