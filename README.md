@@ -92,3 +92,9 @@ in the folder ``./models/detectors`` and change the folder name from ``PyTorch-Y
         ├── training                (training code)
         └── weights                 (HRnet weights)
         ```
+    - If you want to run the training script on COCO `scripts/train_coco.py`, you have to build the `nms` module first.  
+      Built it either with: 
+      - `cd misc; make` or
+      - `cd misc/nms; python setup_linux.py build_ext --inplace`  
+    
+      Please note that a linux machine with CUDA is currently required. 
