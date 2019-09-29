@@ -153,6 +153,21 @@ class SimpleHRNet:
                     y1 = int(round(y1.item()))
                     y2 = int(round(y2.item()))
 
+                    # Adapt detections to match HRNet input aspect ratio (as suggested by xtyDoge in issue #14)
+                    correction_factor = self.resolution[0] / self.resolution[1] * (x2 - x1) / (y2 - y1)
+                    if correction_factor > 1:
+                        # increase y side
+                        center = y1 + (y2 - y1) // 2
+                        length = int(round((y2 - y1) * correction_factor))
+                        y1 = max(0, center - length // 2)
+                        y2 = min(image.shape[0], center + length // 2)
+                    elif correction_factor < 1:
+                        # increase x side
+                        center = x1 + (x2 - x1) // 2
+                        length = int(round((x2 - x1) * 1 / correction_factor))
+                        x1 = max(0, center - length // 2)
+                        x2 = min(image.shape[1], center + length // 2)
+
                     boxes.append([x1, y1, x2, y2])
                     images[i] = self.transform(image[y1:y2, x1:x2, ::-1])
 
@@ -235,6 +250,21 @@ class SimpleHRNet:
                         x2 = int(round(x2.item()))
                         y1 = int(round(y1.item()))
                         y2 = int(round(y2.item()))
+
+                        # Adapt detections to match HRNet input aspect ratio (as suggested by xtyDoge in issue #14)
+                        correction_factor = self.resolution[0] / self.resolution[1] * (x2 - x1) / (y2 - y1)
+                        if correction_factor > 1:
+                            # increase y side
+                            center = y1 + (y2 - y1) // 2
+                            length = int(round((y2 - y1) * correction_factor))
+                            y1 = max(0, center - length // 2)
+                            y2 = min(image.shape[0], center + length // 2)
+                        elif correction_factor < 1:
+                            # increase x side
+                            center = x1 + (x2 - x1) // 2
+                            length = int(round((x2 - x1) * 1 / correction_factor))
+                            x1 = max(0, center - length // 2)
+                            x2 = min(image.shape[1], center + length // 2)
 
                         boxes_image.append([x1, y1, x2, y2])
                         images_tensor_image[i] = self.transform(image[y1:y2, x1:x2, ::-1])
