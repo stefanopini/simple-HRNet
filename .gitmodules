@@ -1,0 +1,3 @@
+[submodule "models/detectors/yolo"]
+	path = models/detectors/yolo
+	url = https://github.com/eriklindernoren/PyTorch-YOLOv3

@@ -67,11 +67,13 @@ python scripts/train_coco.py --help
 - Download the official pre-trained weights from 
 [https://github.com/leoxiaobin/deep-high-resolution-net.pytorch](https://github.com/leoxiaobin/deep-high-resolution-net.pytorch)
 - For multi-person support:
-    - Clone
-[YOLOv3](https://github.com/eriklindernoren/PyTorch-YOLOv3/tree/47b7c912877ca69db35b8af3a38d6522681b3bb3) 
-in the folder ``./models/detectors`` and change the folder name from ``PyTorch-YOLOv3`` to ``yolo``
+    - Get YOLOv3:
+        - Clone [YOLOv3](https://github.com/eriklindernoren/PyTorch-YOLOv3/tree/47b7c912877ca69db35b8af3a38d6522681b3bb3) 
+in the folder ``./models/detectors`` and change the folder name from ``PyTorch-YOLOv3`` to ``yolo`` OR
+        - Update git submodules  
+        ``git submodule update --init --recursive``
     - Install YOLOv3 required packages  
-       ``pip install -r requirements.txt``
+       ``pip install -r requirements.txt`` (from folder `./models/detectors/yolo`)
     - Download the pre-trained weights running the script ``download_weights.sh`` from the ``weights`` folder
     - (Optional) Download the [COCO dataset](http://cocodataset.org/#download) and save it in ``./datasets/COCO``
     - Your folders should look like:
