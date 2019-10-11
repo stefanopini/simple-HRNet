@@ -36,7 +36,7 @@ class SimpleHRNet:
         Args:
             c (int): number of channels.
             nof_joints (int): number of joints.
-            checkpoint_path (str): hrnet checkpoint path.
+            checkpoint_path (str): path to an official hrnet checkpoint or a checkpoint obtained with `train_coco.py`.
             resolution (tuple): hrnet input resolution - format: (height, width).
                 Default: (384, 288)
             interpolation (int): opencv interpolation algorithm.
@@ -70,7 +70,11 @@ class SimpleHRNet:
         self.device = device
 
         self.model = HRNet(c=c, nof_joints=nof_joints).to(device)
-        self.model.load_state_dict(torch.load(checkpoint_path, map_location=self.device))
+        checkpoint = torch.load(checkpoint_path, map_location=self.device)
+        if 'model' in checkpoint:
+            self.model.load_state_dict(checkpoint['model'])
+        else:
+            self.model.load_state_dict(checkpoint)
         self.model.eval()
 
         if not self.multiperson:
