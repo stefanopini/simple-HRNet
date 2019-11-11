@@ -22,7 +22,7 @@ def main(exp_name,
          lr_decay_steps='(170, 200)',
          lr_decay_gamma=0.1,
          optimizer='Adam',
-         weight_decay=0.00001,
+         weight_decay=0.,
          momentum=0.9,
          nesterov=False,
          pretrained_weight_path=None,
@@ -125,7 +125,7 @@ if __name__ == '__main__':
     parser.add_argument("--lr_decay_gamma", help="learning rate decay gamma", type=float, default=0.1)
     parser.add_argument("--optimizer", "-o", help="optimizer name. Currently, only `SGD` and `Adam` are supported.",
                         type=str, default='Adam')
-    parser.add_argument("--weight_decay", help="weight decay", type=float, default=0.00001)
+    parser.add_argument("--weight_decay", help="weight decay", type=float, default=0.)
     parser.add_argument("--momentum", "-m", help="momentum", type=float, default=0.9)
     parser.add_argument("--nesterov", help="enable nesterov", action="store_true")
     parser.add_argument("--pretrained_weight_path", "-p",

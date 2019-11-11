@@ -28,7 +28,7 @@ class COCOTrain(Train):
                  lr_decay_steps=(170, 200),
                  lr_decay_gamma=0.1,
                  optimizer='Adam',
-                 weight_decay=0.00001,
+                 weight_decay=0.,
                  momentum=0.9,
                  nesterov=False,
                  pretrained_weight_path=None,
@@ -68,7 +68,7 @@ class COCOTrain(Train):
             optimizer (str): network optimizer. Valid values are 'Adam' and 'SGD'.
                 Default: "Adam"
             weight_decay (float): weight decay.
-                Default: 0000001
+                Default: 0.
             momentum (float): momentum factor.
                 Default: 0.9
             nesterov (bool): Nesterov momentum.
