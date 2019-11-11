@@ -12,7 +12,7 @@ from misc.visualization import draw_points, draw_skeleton, draw_points_and_skele
 
 
 def main(camera_id, filename, hrnet_c, hrnet_j, hrnet_weights, hrnet_joints_set, image_resolution, single_person,
-         max_batch_size, disable_vidgear, device):
+         max_batch_size, disable_vidgear, save_video, video_format, video_framerate, device):
     if device is not None:
         device = torch.device(device)
     else:
@@ -26,6 +26,7 @@ def main(camera_id, filename, hrnet_c, hrnet_j, hrnet_weights, hrnet_joints_set,
 
     image_resolution = ast.literal_eval(image_resolution)
     has_display = 'DISPLAY' in os.environ.keys() or sys.platform == 'win32'
+    video_writer = None
 
     if filename is not None:
         video = cv2.VideoCapture(filename)
@@ -76,6 +77,15 @@ def main(camera_id, filename, hrnet_c, hrnet_j, hrnet_weights, hrnet_joints_set,
         else:
             cv2.imwrite('frame.png', frame)
 
+        if save_video:
+            if video_writer is None:
+                fourcc = cv2.VideoWriter_fourcc(*video_format)  # video format
+                video_writer = cv2.VideoWriter('output.avi', fourcc, video_framerate, (frame.shape[1], frame.shape[0]))
+            video_writer.write(frame)
+
+    if save_video:
+        video_writer.release()
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -98,6 +108,10 @@ if __name__ == '__main__':
     parser.add_argument("--disable_vidgear",
                         help="disable vidgear (which is used for slightly better realtime performance)",
                         action="store_true")  # see https://pypi.org/project/vidgear/
+    parser.add_argument("--save_video", help="save output frames into a video.", action="store_true")
+    parser.add_argument("--video_format", help="fourcc video format. Common formats: `MJPG`, `XVID`, `X264`."
+                                                     "See http://www.fourcc.org/codecs.php", type=str, default='MJPG')
+    parser.add_argument("--video_framerate", help="video framerate", type=int, default=30)
     parser.add_argument("--device", help="device to be used (default: cuda, if available)", type=str, default=None)
     args = parser.parse_args()
     main(**args.__dict__)
