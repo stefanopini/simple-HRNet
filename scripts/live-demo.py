@@ -3,6 +3,7 @@ import sys
 import argparse
 import ast
 import cv2
+import time
 import torch
 from vidgear.gears import CamGear
 
@@ -49,6 +50,8 @@ def main(camera_id, filename, hrnet_c, hrnet_j, hrnet_weights, hrnet_joints_set,
     )
 
     while True:
+        t = time.time()
+
         if filename is not None or disable_vidgear:
             ret, frame = video.read()
             if not ret:
@@ -64,6 +67,9 @@ def main(camera_id, filename, hrnet_c, hrnet_j, hrnet_weights, hrnet_joints_set,
             frame = draw_points_and_skeleton(frame, pt, joints_dict()[hrnet_joints_set]['skeleton'], person_index=i,
                                              points_color_palette='gist_rainbow', skeleton_color_palette='jet',
                                              points_palette_samples=10)
+
+        fps = 1. / (time.time() - t)
+        print('\rframerate: %f fps' % fps, end='')
 
         if has_display:
             cv2.imshow('frame.png', frame)
