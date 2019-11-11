@@ -181,7 +181,8 @@ class Train(object):
         #
         # load pre-trained weights (such as those pre-trained on imagenet)
         if self.pretrained_weight_path is not None:
-            self.model.load_state_dict(torch.load(self.pretrained_weight_path, map_location=self.device), strict=False)
+            self.model.load_state_dict(torch.load(self.pretrained_weight_path, map_location=self.device), strict=True)
+            print('Pre-trained weights loaded.')
 
         #
         # load previous checkpoint
@@ -198,7 +199,7 @@ class Train(object):
 
         if lr_decay:
             self.lr_scheduler = MultiStepLR(self.optim, list(self.lr_decay_steps), gamma=self.lr_decay_gamma,
-                                            last_epoch=self.starting_epoch)
+                                            last_epoch=self.starting_epoch if self.starting_epoch else -1)
 
         #
         # load train and val datasets
