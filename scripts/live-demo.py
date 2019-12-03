@@ -9,7 +9,7 @@ from vidgear.gears import CamGear
 
 sys.path.insert(1, os.getcwd())
 from SimpleHRNet import SimpleHRNet
-from misc.visualization import draw_points, draw_skeleton, draw_points_and_skeleton, joints_dict
+from misc.visualization import draw_points, draw_skeleton, draw_points_and_skeleton, joints_dict, check_video_rotation
 
 
 def main(camera_id, filename, hrnet_c, hrnet_j, hrnet_weights, hrnet_joints_set, image_resolution, single_person,
@@ -30,9 +30,11 @@ def main(camera_id, filename, hrnet_c, hrnet_j, hrnet_weights, hrnet_joints_set,
     video_writer = None
 
     if filename is not None:
+        rotation_code = check_video_rotation(filename)
         video = cv2.VideoCapture(filename)
         assert video.isOpened()
     else:
+        rotation_code = None
         if disable_vidgear:
             video = cv2.VideoCapture(camera_id)
             assert video.isOpened()
@@ -56,6 +58,8 @@ def main(camera_id, filename, hrnet_c, hrnet_j, hrnet_weights, hrnet_joints_set,
             ret, frame = video.read()
             if not ret:
                 break
+            if rotation_code is not None:
+                frame = cv2.rotate(frame, rotation_code)
         else:
             frame = video.read()
             if frame is None:

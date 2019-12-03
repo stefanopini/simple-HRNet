@@ -49,6 +49,18 @@ For help:
 python scripts/live-demo.py --help
 ```
 
+#### Extracting keypoints:
+
+From a saved video:
+```
+python scripts/extract-keypoints.py --filename video.mp4
+```
+
+For help:
+```
+python scripts/extract-keypoints.py --help
+```
+
 #### Running the training script
 
 ```

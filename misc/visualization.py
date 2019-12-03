@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import torchvision
+import ffmpeg
 
 
 def joints_dict():
@@ -255,3 +256,28 @@ def save_images(images, target, joint_target, output, joint_output, joint_visibi
     #     summary_writer.add_image('train_heatmap_%d' % h, heatmap, global_step=step + epoch*len_dl_train)
 
     return grid_gt, grid_pred
+
+
+def check_video_rotation(filename):
+    # thanks to
+    # https://stackoverflow.com/questions/53097092/frame-from-video-is-upside-down-after-extracting/55747773#55747773
+
+    # this returns meta-data of the video file in form of a dictionary
+    meta_dict = ffmpeg.probe(filename)
+
+    # from the dictionary, meta_dict['streams'][0]['tags']['rotate'] is the key
+    # we are looking for
+    rotation_code = None
+    try:
+        if int(meta_dict['streams'][0]['tags']['rotate']) == 90:
+            rotation_code = cv2.ROTATE_90_CLOCKWISE
+        elif int(meta_dict['streams'][0]['tags']['rotate']) == 180:
+            rotation_code = cv2.ROTATE_180
+        elif int(meta_dict['streams'][0]['tags']['rotate']) == 270:
+            rotation_code = cv2.ROTATE_90_COUNTERCLOCKWISE
+        else:
+            raise ValueError
+    except KeyError:
+        pass
+
+    return rotation_code
