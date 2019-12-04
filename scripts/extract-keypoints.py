@@ -2,10 +2,10 @@ import os
 import sys
 import argparse
 import ast
+import csv
 import cv2
 import time
 import torch
-from vidgear.gears import CamGear
 
 sys.path.insert(1, os.getcwd())
 from SimpleHRNet import SimpleHRNet
@@ -30,8 +30,8 @@ def main(filename, hrnet_c, hrnet_j, hrnet_weights, image_resolution, single_per
     rotation_code = check_video_rotation(filename)
     video = cv2.VideoCapture(filename)
     assert video.isOpened()
+    nof_frames = video.get(cv2.CAP_PROP_FRAME_COUNT)
 
-    import csv
     assert csv_output_filename.endswith('.csv')
     with open(csv_output_filename, 'wt', newline='') as fd:
         csv_output = csv.writer(fd, delimiter=csv_delimiter)
@@ -67,11 +67,10 @@ def main(filename, hrnet_c, hrnet_j, hrnet_weights, image_resolution, single_per
                 csv_output.writerow(row)
 
             fps = 1. / (time.time() - t)
-            print('\rframerate: %f fps' % fps, end='')
+            print('\rframe: % 4d / %d - framerate: %f fps ' % (index, nof_frames - 1, fps), end='')
 
             index += 1
 
-            break
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
