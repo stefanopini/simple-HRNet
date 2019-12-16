@@ -8,6 +8,7 @@ The code is a simplified version of the [official code](https://github.com/leoxi
 The code is fully compatible with the
  [official pre-trained weights](https://github.com/leoxiaobin/deep-high-resolution-net.pytorch) and the results are the
  same of the original implementation (only slight differences on gpu due to CUDA).
+ It supports both Windows and Linux.
 
 
 This repository provides:
@@ -72,43 +73,46 @@ For help:
 python scripts/train_coco.py --help
 ```
 
-#### Requirements
+#### Installation instructions
 
-- Install the required packages    
+- Clone the repository  
+ ``git clone https://github.com/stefanopini/simple-HRNet.git``
+- Install the required packages  
  ``pip install -r requirements.txt``
 - Download the official pre-trained weights from 
 [https://github.com/leoxiaobin/deep-high-resolution-net.pytorch](https://github.com/leoxiaobin/deep-high-resolution-net.pytorch)
 - For multi-person support:
     - Get YOLOv3:
         - Clone [YOLOv3](https://github.com/eriklindernoren/PyTorch-YOLOv3/tree/47b7c912877ca69db35b8af3a38d6522681b3bb3) 
-in the folder ``./models/detectors`` and change the folder name from ``PyTorch-YOLOv3`` to ``yolo`` OR
+in the folder ``./models/detectors`` and change the folder name from ``PyTorch-YOLOv3`` to ``yolo``  
+          OR
         - Update git submodules  
         ``git submodule update --init --recursive``
     - Install YOLOv3 required packages  
        ``pip install -r requirements.txt`` (from folder `./models/detectors/yolo`)
     - Download the pre-trained weights running the script ``download_weights.sh`` from the ``weights`` folder
-    - (Optional) Download the [COCO dataset](http://cocodataset.org/#download) and save it in ``./datasets/COCO``
-    - Your folders should look like:
-        ```
-        simple-HRNet
-        ├── datasets                (datasets - for training only)
-        │  └── COCO                 (COCO dataset)
-        ├── losses                  (loss functions)
-        ├── misc                    (misc)
-        │  └── nms                  (CUDA nms module - for training only)
-        ├── models                  (pytorch models)
-        │  └── detectors            (people detectors)
-        │    └── yolo               (PyTorch-YOLOv3 repository)
-        │      ├── ...
-        │      └── weights          (YOLOv3 weights)
-        ├── scripts                 (scripts)
-        ├── testing                 (testing code)
-        ├── training                (training code)
-        └── weights                 (HRnet weights)
-        ```
-    - If you want to run the training script on COCO `scripts/train_coco.py`, you have to build the `nms` module first.  
-      Please note that a linux machine with CUDA is currently required. 
-      Built it with either: 
-      - `cd misc; make` or
-      - `cd misc/nms; python setup_linux.py build_ext --inplace`  
+- (Optional) Download the [COCO dataset](http://cocodataset.org/#download) and save it in ``./datasets/COCO``
+- Your folders should look like:
+    ```
+    simple-HRNet
+    ├── datasets                (datasets - for training only)
+    │  └── COCO                 (COCO dataset)
+    ├── losses                  (loss functions)
+    ├── misc                    (misc)
+    │  └── nms                  (CUDA nms module - for training only)
+    ├── models                  (pytorch models)
+    │  └── detectors            (people detectors)
+    │    └── yolo               (PyTorch-YOLOv3 repository)
+    │      ├── ...
+    │      └── weights          (YOLOv3 weights)
+    ├── scripts                 (scripts)
+    ├── testing                 (testing code)
+    ├── training                (training code)
+    └── weights                 (HRnet weights)
+    ```
+- If you want to run the training script on COCO `scripts/train_coco.py`, you have to build the `nms` module first.  
+  Please note that a linux machine with CUDA is currently required. 
+  Built it with either: 
+  - `cd misc; make` or
+  - `cd misc/nms; python setup_linux.py build_ext --inplace`  
     
