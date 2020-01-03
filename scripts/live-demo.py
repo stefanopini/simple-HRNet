@@ -6,14 +6,16 @@ import cv2
 import time
 import torch
 from vidgear.gears import CamGear
+import numpy as np
 
 sys.path.insert(1, os.getcwd())
 from SimpleHRNet import SimpleHRNet
 from misc.visualization import draw_points, draw_skeleton, draw_points_and_skeleton, joints_dict, check_video_rotation
-
+from misc.utils import find_person_id_associations
 
 def main(camera_id, filename, hrnet_c, hrnet_j, hrnet_weights, hrnet_joints_set, image_resolution, single_person,
-         max_batch_size, disable_vidgear, save_video, video_format, video_framerate, device):
+         disable_tracking, max_batch_size, disable_vidgear, save_video, video_format,
+         video_framerate, device):
     if device is not None:
         device = torch.device(device)
     else:
@@ -47,9 +49,16 @@ def main(camera_id, filename, hrnet_c, hrnet_j, hrnet_weights, hrnet_joints_set,
         hrnet_weights,
         resolution=image_resolution,
         multiperson=not single_person,
+        return_bounding_boxes=not disable_tracking,
         max_batch_size=max_batch_size,
         device=device
     )
+
+    if not disable_tracking:
+        prev_boxes = None
+        prev_pts = None
+        prev_person_ids = None
+        next_person_id = 0
 
     while True:
         t = time.time()
@@ -67,8 +76,32 @@ def main(camera_id, filename, hrnet_c, hrnet_j, hrnet_weights, hrnet_joints_set,
 
         pts = model.predict(frame)
 
-        for i, pt in enumerate(pts):
-            frame = draw_points_and_skeleton(frame, pt, joints_dict()[hrnet_joints_set]['skeleton'], person_index=i,
+        if not disable_tracking:
+            boxes, pts = pts
+
+        if not disable_tracking:
+            if len(pts) > 0:
+                if prev_pts is None and prev_person_ids is None:
+                    person_ids = np.arange(next_person_id, len(pts) + next_person_id, dtype=np.int32)
+                    next_person_id = len(pts) + 1
+                else:
+                    boxes, pts, person_ids = find_person_id_associations(
+                        boxes=boxes, pts=pts, prev_boxes=prev_boxes, prev_pts=prev_pts, prev_person_ids=prev_person_ids,
+                        next_person_id=next_person_id, pose_alpha=0.2, similarity_threshold=0.4, smoothing_alpha=0.1,
+                    )
+                    next_person_id = max(next_person_id, np.max(person_ids) + 1)
+            else:
+                person_ids = np.array((), dtype=np.int32)
+
+            prev_boxes = boxes.copy()
+            prev_pts = pts.copy()
+            prev_person_ids = person_ids
+
+        else:
+            person_ids = np.arange(len(pts), dtype=np.int32)
+
+        for i, (pt, pid) in enumerate(zip(pts, person_ids)):
+            frame = draw_points_and_skeleton(frame, pt, joints_dict()[hrnet_joints_set]['skeleton'], person_index=pid,
                                              points_color_palette='gist_rainbow', skeleton_color_palette='jet',
                                              points_palette_samples=10)
 
@@ -114,6 +147,9 @@ if __name__ == '__main__':
                         help="disable the multiperson detection (YOLOv3 or an equivalen detector is required for"
                              "multiperson detection)",
                         action="store_true")
+    parser.add_argument("--disable_tracking",
+                        help="disable the skeleton tracking and temporal smoothing functionality",
+                        action="store_true")
     parser.add_argument("--max_batch_size", help="maximum batch size used for inference", type=int, default=16)
     parser.add_argument("--disable_vidgear",
                         help="disable vidgear (which is used for slightly better realtime performance)",
@@ -121,7 +157,7 @@ if __name__ == '__main__':
     parser.add_argument("--save_video", help="save output frames into a video.", action="store_true")
     parser.add_argument("--video_format", help="fourcc video format. Common formats: `MJPG`, `XVID`, `X264`."
                                                      "See http://www.fourcc.org/codecs.php", type=str, default='MJPG')
-    parser.add_argument("--video_framerate", help="video framerate", type=int, default=30)
+    parser.add_argument("--video_framerate", help="video framerate", type=float, default=30)
     parser.add_argument("--device", help="device to be used (default: cuda, if available)", type=str, default=None)
     args = parser.parse_args()
     main(**args.__dict__)

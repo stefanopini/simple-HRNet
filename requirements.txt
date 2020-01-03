@@ -1,5 +1,6 @@
 ffmpeg-python>=0.2.0
 matplotlib>=3.0.2
+munkres>=1.1.2
 numpy>=1.16
 opencv-python>=3.4
 Pillow>=5.4

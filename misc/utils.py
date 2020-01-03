@@ -1,5 +1,6 @@
 import math
 import cv2
+import munkres
 import numpy as np
 import torch
 
@@ -241,5 +242,182 @@ def evaluate_pck_accuracy(output, target, hm_type='gaussian', thr=0.5):
 
     avg_acc = avg_acc / cnt if cnt != 0 else 0
     return acc, avg_acc, cnt, pred, target
+#
+#
+
+
+#
+# Operations on bounding boxes (rectangles)
+def bbox_area(bbox):
+    """
+    Area of a bounding box (a rectangles).
+
+    Args:
+        bbox (:class:`np.ndarray`): rectangle in the form (x_min, y_min, x_max, y_max)
+
+    Returns:
+        float: Bounding box area.
+    """
+    x1, y1, x2, y2 = bbox
+
+    dx = x2 - x1
+    dy = y2 - y1
+
+    return dx * dy
+
+
+def bbox_intersection(bbox_a, bbox_b):
+    """
+    Intersection between two buonding boxes (two rectangles).
+
+    Args:
+        bbox_a (:class:`np.ndarray`): rectangle in the form (x_min, y_min, x_max, y_max)
+        bbox_b (:class:`np.ndarray`): rectangle in the form (x_min, y_min, x_max, y_max)
+
+    Returns:
+        (:class:`np.ndarray`, float):
+            Intersection limits and area.
+
+            Format: (x_min, y_min, x_max, y_max), area
+    """
+    x1 = np.max((bbox_a[0], bbox_b[0]))  # Left
+    x2 = np.min((bbox_a[2], bbox_b[2]))  # Right
+    y1 = np.max((bbox_a[1], bbox_b[1]))  # Top
+    y2 = np.min((bbox_a[3], bbox_b[3]))  # Bottom
+
+    if x2 < x1 or y2 < y1:
+        bbox_i = np.asarray([0, 0, 0, 0])
+        area_i = 0
+    else:
+        bbox_i = np.asarray([x1, y1, x2, y2], dtype=bbox_a.dtype)
+        area_i = bbox_area(bbox_i)
+
+    return bbox_i, area_i
+
+
+def bbox_union(bbox_a, bbox_b):
+    """
+    Union between two buonding boxes (two rectangles).
+
+    Args:
+        bbox_a (:class:`np.ndarray`): rectangle in the form (x_min, y_min, x_max, y_max)
+        bbox_b (:class:`np.ndarray`): rectangle in the form (x_min, y_min, x_max, y_max)
+
+    Returns:
+        float: Union.
+    """
+    area_a = bbox_area(bbox_a)
+    area_b = bbox_area(bbox_b)
+
+    bbox_i, area_i = bbox_intersection(bbox_a, bbox_b)
+    area_u = area_a + area_b - area_i
+
+    return area_u
+
+
+def bbox_iou(bbox_a, bbox_b):
+    """
+    Intersection over Union (IoU) between two buonding boxes (two rectangles).
+
+    Args:
+        bbox_a (:class:`np.ndarray`): rectangle in the form (x_min, y_min, x_max, y_max)
+        bbox_b (:class:`np.ndarray`): rectangle in the form (x_min, y_min, x_max, y_max)
+
+    Returns:
+        float: Intersection over Union (IoU).
+    """
+    area_u = bbox_union(bbox_a, bbox_b)
+    bbox_i, area_i = bbox_intersection(bbox_a, bbox_b)
+
+    iou = area_i / area_u
+
+    return iou
+#
+#
+
+
+#
+# Bounding box/pose similarity and association
+def oks_iou(g, d, a_g, a_d, sigmas=None, in_vis_thre=None):
+    if not isinstance(sigmas, np.ndarray):
+        sigmas = np.array([.26, .25, .25, .35, .35, .79, .79, .72, .72, .62, .62, 1.07, 1.07, .87, .87, .89, .89])/10.0
+    vars = (sigmas * 2) ** 2
+    xg = g[:, 0]
+    yg = g[:, 1]
+    vg = g[:, 2]
+    ious = np.zeros((d.shape[0]))
+    for n_d in range(0, d.shape[0]):
+        xd = d[n_d, :, 0]
+        yd = d[n_d, :, 1]
+        vd = d[n_d, :, 2]
+        dx = xd - xg
+        dy = yd - yg
+        e = (dx ** 2 + dy ** 2) / vars / ((a_g + a_d[n_d]) / 2 + np.spacing(1)) / 2
+        if in_vis_thre is not None:
+            ind = list(vg > in_vis_thre) and list(vd > in_vis_thre)
+            e = e[ind]
+        ious[n_d] = np.sum(np.exp(-e)) / e.shape[0] if e.shape[0] != 0 else 0.0
+    return ious
+
+
+def compute_similarity_matrices(bboxes_a, bboxes_b, poses_a, poses_b):
+    assert len(bboxes_a) == len(poses_a) and len(bboxes_b) == len(poses_b)
+
+    result_bbox = np.zeros((len(bboxes_a), len(bboxes_b)), dtype=np.float32)
+    result_pose = np.zeros((len(poses_a), len(poses_b)), dtype=np.float32)
+
+    for i, (bbox_a, pose_a) in enumerate(zip(bboxes_a, poses_a)):
+        area_bboxes_b = np.asarray([bbox_area(bbox_b) for bbox_b in bboxes_b])
+        result_pose[i, :] = oks_iou(pose_a, poses_b, bbox_area(bbox_a), area_bboxes_b)
+        for j, (bbox_b, pose_b) in enumerate(zip(bboxes_b, poses_b)):
+            result_bbox[i, j] = bbox_iou(bbox_a, bbox_b)
+
+    return result_bbox, result_pose
+
+
+def find_person_id_associations(boxes, pts, prev_boxes, prev_pts, prev_person_ids, next_person_id=0,
+                                pose_alpha=0.5, similarity_threshold=0.5, smoothing_alpha=0.):
+    """
+    Find associations between previous and current skeletons and apply temporal smoothing.
+    It requires previous and current bounding boxes, skeletons, and previous person_ids.
+
+    Args:
+        boxes (:class:`np.ndarray`): current person bounding boxes
+        pts (:class:`np.ndarray`): current human joints
+        prev_boxes (:class:`np.ndarray`): previous person bounding boxes
+        prev_pts (:class:`np.ndarray`): previous human joints
+        prev_person_ids (:class:`np.ndarray`): previous person ids
+        next_person_id (int): the id that will be assigned to the next novel detected person
+            Default: 0
+        pose_alpha (float): parameter to weight between bounding box similarity and pose (oks) similarity.
+            pose_alpha * pose_similarity + (1 - pose_alpha) * bbox_similarity
+            Default: 0.5
+        similarity_threshold (float): lower similarity threshold to have a correct match between previous and
+            current detections.
+            Default: 0.5
+        smoothing_alpha (float): linear temporal smoothing filter. Set 0 to disable, 1 to keep the previous detection.
+            Default: 0.1
+
+    Returns:
+            (:class:`np.ndarray`, :class:`np.ndarray`, :class:`np.ndarray`):
+                A list with (boxes, pts, person_ids) where boxes and pts are temporally smoothed.
+    """
+    bbox_similarity_matrix, pose_similarity_matrix = compute_similarity_matrices(boxes, prev_boxes, pts, prev_pts)
+    similarity_matrix = pose_similarity_matrix * pose_alpha + bbox_similarity_matrix * (1 - pose_alpha)
+
+    m = munkres.Munkres()
+    assignments = np.asarray(m.compute((1 - similarity_matrix).tolist()))  # Munkres require a cost => 1 - similarity
+
+    person_ids = np.ones(len(pts), dtype=np.int32) * -1
+    for assignment in assignments:
+        if similarity_matrix[assignment[0], assignment[1]] > similarity_threshold:
+            person_ids[assignment[0]] = prev_person_ids[assignment[1]]
+            if smoothing_alpha:
+                boxes[assignment[0]] = (1 - smoothing_alpha) * boxes[assignment[0]] + smoothing_alpha * prev_boxes[assignment[1]]
+                pts[assignment[0]] = (1 - smoothing_alpha) * pts[assignment[0]] + smoothing_alpha * prev_pts[assignment[1]]
+
+    person_ids[person_ids == -1] = np.arange(next_person_id, next_person_id + np.sum(person_ids == -1))
+
+    return boxes, pts, person_ids
 #
 #

@@ -23,6 +23,7 @@ class SimpleHRNet:
                  resolution=(384, 288),
                  interpolation=cv2.INTER_CUBIC,
                  multiperson=True,
+                 return_bounding_boxes=False,
                  max_batch_size=32,
                  yolo_model_def="./models/detectors/yolo/config/yolov3.cfg",
                  yolo_class_path="./models/detectors/yolo/data/coco.names",
@@ -44,6 +45,8 @@ class SimpleHRNet:
             multiperson (bool): if True, multiperson detection will be enabled.
                 This requires the use of a people detector (like YOLOv3).
                 Default: True
+            return_bounding_boxes (bool): if True, bounding boxes will be returned along with poses by self.predict.
+                Default: False
             max_batch_size (int): maximum batch size used in hrnet inference.
                 Useless without multiperson=True.
                 Default: 16
@@ -63,6 +66,7 @@ class SimpleHRNet:
         self.resolution = resolution  # in the form (height, width) as in the original implementation
         self.interpolation = interpolation
         self.multiperson = multiperson
+        self.return_bounding_boxes = return_bounding_boxes
         self.max_batch_size = max_batch_size
         self.yolo_model_def = yolo_model_def
         self.yolo_class_path = yolo_class_path
@@ -97,11 +101,9 @@ class SimpleHRNet:
                 transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
             ])
 
-        pass
-
     def predict(self, image):
         """
-        Predicts the human pose on a single image.
+        Predicts the human pose on a single image or a stack of n images.
 
         Args:
             image (:class:`np.ndarray`):
@@ -113,7 +115,7 @@ class SimpleHRNet:
                     - a stack of n images with shape=(n, height, width, BGR color channel)
 
         Returns:
-            `:class:np.ndarray`:
+            :class:`np.ndarray`:
                 a numpy array containing human joints for each (detected) person.
 
                 Format:
@@ -123,7 +125,9 @@ class SimpleHRNet:
                         list of n np.ndarrays with
                         shape=(# of people, # of joints (nof_joints), 3);  dtype=(np.float32).
 
-                Each joint has 3 values: (x position, y position, joint confidence)
+                Each joint has 3 values: (x position, y position, joint confidence).
+
+                If self.return_bounding_boxes, the class returns a list with (bounding boxes, human joints)
         """
         if len(image.shape) == 3:
             return self._predict_single(image)
@@ -189,8 +193,9 @@ class SimpleHRNet:
 
                 else:
                     out = torch.empty(
-                        (images.shape[0], self.nof_joints, self.resolution[0] // 4, self.resolution[1] // 4)
-                    ).to(self.device)
+                        (images.shape[0], self.nof_joints, self.resolution[0] // 4, self.resolution[1] // 4),
+                        device=self.device
+                    )
                     for i in range(0, len(images), self.max_batch_size):
                         out[i:i + self.max_batch_size] = self.model(images[i:i + self.max_batch_size])
 
@@ -210,7 +215,10 @@ class SimpleHRNet:
         else:
             pts = np.empty((0, 0, 3), dtype=np.float32)
 
-        return pts
+        if self.return_bounding_boxes:
+            return boxes, pts
+        else:
+            return pts
 
     def _predict_batch(self, images):
         if not self.multiperson:
@@ -292,8 +300,9 @@ class SimpleHRNet:
 
             else:
                 out = torch.empty(
-                    (images.shape[0], self.nof_joints, self.resolution[0] // 4, self.resolution[1] // 4)
-                ).to(self.device)
+                    (images.shape[0], self.nof_joints, self.resolution[0] // 4, self.resolution[1] // 4),
+                    device=self.device
+                )
                 for i in range(0, len(images), self.max_batch_size):
                     out[i:i + self.max_batch_size] = self.model(images[i:i + self.max_batch_size])
 
@@ -325,4 +334,7 @@ class SimpleHRNet:
         else:
             pts = np.expand_dims(pts, axis=1)
 
-        return pts
+        if self.return_bounding_boxes:
+            return boxes, pts
+        else:
+            return pts
