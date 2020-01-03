@@ -22,6 +22,17 @@ This repository provides:
 - A relatively-simple code for training and testing the HRNet network.
 - A specific script for training the network on the COCO dataset. 
  
+#### Examples
+
+<table>
+ <tr>
+  </td><td align="center"><img src="./gifs/gif-01+output.gif" width="100%" height="auto" /></td>
+ </tr>
+ <tr>
+  <td align="center"><img src="./gifs/gif-02+output.gif" width="100%" height="auto" /></td>
+ </tr>
+</table>
+
 #### Class usage
 
 ```
