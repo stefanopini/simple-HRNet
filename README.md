@@ -12,9 +12,10 @@ The code is fully compatible with the
 
 
 This repository provides:
-- A simple ``HRNet`` implementation in PyTorch (>=1.0) - compatible with official weights.
+- A simple ``HRNet`` implementation in PyTorch (>=1.0) - compatible with official weights (``pose_hrnet_*``).
 - A simple class (``SimpleHRNet``) that loads the HRNet network for the human pose estimation, loads the pre-trained weights,
  and make human predictions on a single image or a batch of images.
+- **NEW** Support for "SimpleBaselines" model based on ResNet - compatible with official weights (``pose_resnet_*``).
 - Multi-person support with
  [YOLOv3](https://github.com/eriklindernoren/PyTorch-YOLOv3/tree/47b7c912877ca69db35b8af3a38d6522681b3bb3) 
  (enabled by default).  

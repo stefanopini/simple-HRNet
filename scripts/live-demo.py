@@ -13,8 +13,8 @@ from SimpleHRNet import SimpleHRNet
 from misc.visualization import draw_points, draw_skeleton, draw_points_and_skeleton, joints_dict, check_video_rotation
 from misc.utils import find_person_id_associations
 
-def main(camera_id, filename, hrnet_c, hrnet_j, hrnet_weights, hrnet_joints_set, image_resolution, single_person,
-         disable_tracking, max_batch_size, disable_vidgear, save_video, video_format,
+def main(camera_id, filename, hrnet_m, hrnet_c, hrnet_j, hrnet_weights, hrnet_joints_set, image_resolution,
+         single_person, disable_tracking, max_batch_size, disable_vidgear, save_video, video_format,
          video_framerate, device):
     if device is not None:
         device = torch.device(device)
@@ -47,6 +47,7 @@ def main(camera_id, filename, hrnet_c, hrnet_j, hrnet_weights, hrnet_joints_set,
         hrnet_c,
         hrnet_j,
         hrnet_weights,
+        model_name=hrnet_m,
         resolution=image_resolution,
         multiperson=not single_person,
         return_bounding_boxes=not disable_tracking,
@@ -135,7 +136,9 @@ if __name__ == '__main__':
     parser.add_argument("--camera_id", "-d", help="open the camera with the specified id", type=int, default=0)
     parser.add_argument("--filename", "-f", help="open the specified video (overrides the --camera_id option)",
                         type=str, default=None)
-    parser.add_argument("--hrnet_c", "-c", help="hrnet parameters - number of channels", type=int, default=48)
+    parser.add_argument("--hrnet_m", "-m", help="network model - 'HRNet' or 'PoseResNet'", type=str, default='HRNet')
+    parser.add_argument("--hrnet_c", "-c", help="hrnet parameters - number of channels (if model is HRNet), "
+                                                "resnet size (if model is PoseResNet)", type=int, default=48)
     parser.add_argument("--hrnet_j", "-j", help="hrnet parameters - number of joints", type=int, default=17)
     parser.add_argument("--hrnet_weights", "-w", help="hrnet parameters - path to the pretrained weights",
                         type=str, default="./weights/pose_hrnet_w48_384x288.pth")

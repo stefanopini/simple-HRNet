@@ -4,6 +4,7 @@ import torch
 from torchvision.transforms import transforms
 
 from models.hrnet import HRNet
+from models.poseresnet import PoseResNet
 from models.detectors.YOLOv3 import YOLOv3
 
 
@@ -20,6 +21,7 @@ class SimpleHRNet:
                  c,
                  nof_joints,
                  checkpoint_path,
+                 model_name='HRNet',
                  resolution=(384, 288),
                  interpolation=cv2.INTER_CUBIC,
                  multiperson=True,
@@ -35,9 +37,13 @@ class SimpleHRNet:
         its (their) pre-trained weights will be loaded from disk.
 
         Args:
-            c (int): number of channels.
+            c (int): number of channels (when using HRNet model) or resnet size (when using PoseResNet model).
             nof_joints (int): number of joints.
             checkpoint_path (str): path to an official hrnet checkpoint or a checkpoint obtained with `train_coco.py`.
+            model_name (str): model name (HRNet or PoseResNet).
+                Valid names for HRNet are: `HRNet`, `hrnet`
+                Valid names for PoseResNet are: `PoseResNet`, `poseresnet`, `ResNet`, `resnet`
+                Default: "HRNet"
             resolution (tuple): hrnet input resolution - format: (height, width).
                 Default: (384, 288)
             interpolation (int): opencv interpolation algorithm.
@@ -63,6 +69,7 @@ class SimpleHRNet:
         self.c = c
         self.nof_joints = nof_joints
         self.checkpoint_path = checkpoint_path
+        self.model_name = model_name
         self.resolution = resolution  # in the form (height, width) as in the original implementation
         self.interpolation = interpolation
         self.multiperson = multiperson
@@ -73,7 +80,12 @@ class SimpleHRNet:
         self.yolo_weights_path = yolo_weights_path
         self.device = device
 
-        self.model = HRNet(c=c, nof_joints=nof_joints).to(device)
+        if model_name in ('HRNet', 'hrnet'):
+            self.model = HRNet(c=c, nof_joints=nof_joints).to(device)
+        elif model_name in ('PoseResNet', 'poseresnet', 'ResNet', 'resnet'):
+            self.model = PoseResNet(resnet_size=c, nof_joints=nof_joints).to(device)
+        else:
+            raise ValueError('Wrong model name.')
         checkpoint = torch.load(checkpoint_path, map_location=self.device)
         if 'model' in checkpoint:
             self.model.load_state_dict(checkpoint['model'])

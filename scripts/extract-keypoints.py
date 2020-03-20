@@ -12,7 +12,7 @@ from SimpleHRNet import SimpleHRNet
 from misc.visualization import check_video_rotation
 
 
-def main(filename, hrnet_c, hrnet_j, hrnet_weights, image_resolution, single_person,
+def main(filename, hrnet_m, hrnet_c, hrnet_j, hrnet_weights, image_resolution, single_person,
          max_batch_size, csv_output_filename, csv_delimiter, device):
     if device is not None:
         device = torch.device(device)
@@ -40,6 +40,7 @@ def main(filename, hrnet_c, hrnet_j, hrnet_weights, image_resolution, single_per
             hrnet_c,
             hrnet_j,
             hrnet_weights,
+            model_name=hrnet_m,
             resolution=image_resolution,
             multiperson=not single_person,
             max_batch_size=max_batch_size,
@@ -80,7 +81,9 @@ if __name__ == '__main__':
                     '  x_coordinate,y_coordinate,confidence')
     parser.add_argument("--filename", "-f", help="open the specified video",
                         type=str, default=None)
-    parser.add_argument("--hrnet_c", "-c", help="hrnet parameters - number of channels", type=int, default=48)
+    parser.add_argument("--hrnet_m", "-m", help="network model - HRNet or PoseResNet", type=str, default='HRNet')
+    parser.add_argument("--hrnet_c", "-c", help="hrnet parameters - number of channels (if model is HRNet), "
+                                                "resnet size (if model is PoseResNet)", type=int, default=48)
     parser.add_argument("--hrnet_j", "-j", help="hrnet parameters - number of joints", type=int, default=17)
     parser.add_argument("--hrnet_weights", "-w", help="hrnet parameters - path to the pretrained weights",
                         type=str, default="./weights/pose_hrnet_w48_384x288.pth")
