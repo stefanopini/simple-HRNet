@@ -17,13 +17,13 @@ def main(filename, hrnet_m, hrnet_c, hrnet_j, hrnet_weights, image_resolution, s
     if device is not None:
         device = torch.device(device)
     else:
-        if torch.cuda.is_available() and True:
+        if torch.cuda.is_available():
             torch.backends.cudnn.deterministic = True
-            device = torch.device('cuda:0')
+            device = torch.device('cuda')
         else:
             device = torch.device('cpu')
 
-    print(device)
+    # print(device)
 
     image_resolution = ast.literal_eval(image_resolution)
 
@@ -96,6 +96,10 @@ if __name__ == '__main__':
     parser.add_argument("--csv_output_filename", help="filename of the csv that will be written.", type=str,
                         default='output.csv')
     parser.add_argument("--csv_delimiter", help="csv delimiter", type=str, default=',')
-    parser.add_argument("--device", help="device to be used (default: cuda, if available)", type=str, default=None)
+    parser.add_argument("--device", help="device to be used (default: cuda, if available)."
+                                         "Set to `cuda` to use all available GPUs (default); "
+                                         "set to `cuda:IDS` to use one or more specific GPUs "
+                                         "(e.g. `cuda:0` `cuda:1,2`); "
+                                         "set to `cpu` to run on cpu.", type=str, default=None)
     args = parser.parse_args()
     main(**args.__dict__)

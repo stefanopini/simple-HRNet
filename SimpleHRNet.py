@@ -81,16 +81,37 @@ class SimpleHRNet:
         self.device = device
 
         if model_name in ('HRNet', 'hrnet'):
-            self.model = HRNet(c=c, nof_joints=nof_joints).to(device)
+            self.model = HRNet(c=c, nof_joints=nof_joints)
         elif model_name in ('PoseResNet', 'poseresnet', 'ResNet', 'resnet'):
-            self.model = PoseResNet(resnet_size=c, nof_joints=nof_joints).to(device)
+            self.model = PoseResNet(resnet_size=c, nof_joints=nof_joints)
         else:
             raise ValueError('Wrong model name.')
+
         checkpoint = torch.load(checkpoint_path, map_location=self.device)
         if 'model' in checkpoint:
             self.model.load_state_dict(checkpoint['model'])
         else:
             self.model.load_state_dict(checkpoint)
+
+        if 'cuda' in str(self.device):
+            print("device: 'cuda' - ", end="")
+
+            if 'cuda' == str(self.device):
+                # if device is set to 'cuda', all available GPUs will be used
+                print("%d GPU(s) will be used" % torch.cuda.device_count())
+                device_ids = None
+            else:
+                # if device is set to 'cuda:IDS', only that/those device(s) will be used
+                print("GPU(s) '%s' will be used" % str(self.device))
+                device_ids = [int(x) for x in str(self.device)[5:].split(',')]
+
+            self.model = torch.nn.DataParallel(self.model, device_ids=device_ids)
+        elif 'cpu' == str(self.device):
+            print("device: 'cpu'")
+        else:
+            raise ValueError('Wrong device name.')
+
+        self.model = self.model.to(device)
         self.model.eval()
 
         if not self.multiperson:

@@ -19,13 +19,13 @@ def main(camera_id, filename, hrnet_m, hrnet_c, hrnet_j, hrnet_weights, hrnet_jo
     if device is not None:
         device = torch.device(device)
     else:
-        if torch.cuda.is_available() and True:
+        if torch.cuda.is_available():
             torch.backends.cudnn.deterministic = True
-            device = torch.device('cuda:0')
+            device = torch.device('cuda')
         else:
             device = torch.device('cpu')
 
-    print(device)
+    # print(device)
 
     image_resolution = ast.literal_eval(image_resolution)
     has_display = 'DISPLAY' in os.environ.keys() or sys.platform == 'win32'
@@ -161,6 +161,10 @@ if __name__ == '__main__':
     parser.add_argument("--video_format", help="fourcc video format. Common formats: `MJPG`, `XVID`, `X264`."
                                                      "See http://www.fourcc.org/codecs.php", type=str, default='MJPG')
     parser.add_argument("--video_framerate", help="video framerate", type=float, default=30)
-    parser.add_argument("--device", help="device to be used (default: cuda, if available)", type=str, default=None)
+    parser.add_argument("--device", help="device to be used (default: cuda, if available)."
+                                         "Set to `cuda` to use all available GPUs (default); "
+                                         "set to `cuda:IDS` to use one or more specific GPUs "
+                                         "(e.g. `cuda:0` `cuda:1,2`); "
+                                         "set to `cpu` to run on cpu.", type=str, default=None)
     args = parser.parse_args()
     main(**args.__dict__)
