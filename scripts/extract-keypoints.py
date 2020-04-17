@@ -62,7 +62,7 @@ def main(filename, hrnet_m, hrnet_c, hrnet_j, hrnet_weights, image_resolution, s
             # csv format is:
             #   frame_index,detection_index,<point 0>,<point 1>,...,<point hrnet_j>
             # where each <point N> corresponds to three elements:
-            #   x_coordinate,y_coordinate,confidence
+            #   y_coordinate,x_coordinate,confidence
             for j, pt in enumerate(pts):
                 row = [index, j] + pt.flatten().tolist()
                 csv_output.writerow(row)
@@ -78,7 +78,7 @@ if __name__ == '__main__':
         description='csv format is:\n'
                     '  frame_index,detection_index,<point 0>,<point 1>,...,<point hrnet_j>\n'
                     'where each <point N> corresponds to three elements:\n'
-                    '  x_coordinate,y_coordinate,confidence')
+                    '  y_coordinate,x_coordinate,confidence')
     parser.add_argument("--filename", "-f", help="open the specified video",
                         type=str, default=None)
     parser.add_argument("--hrnet_m", "-m", help="network model - HRNet or PoseResNet", type=str, default='HRNet')

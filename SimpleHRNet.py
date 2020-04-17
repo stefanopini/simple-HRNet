@@ -158,7 +158,7 @@ class SimpleHRNet:
                         list of n np.ndarrays with
                         shape=(# of people, # of joints (nof_joints), 3);  dtype=(np.float32).
 
-                Each joint has 3 values: (x position, y position, joint confidence).
+                Each joint has 3 values: (y position, x position, joint confidence).
 
                 If self.return_bounding_boxes, the class returns a list with (bounding boxes, human joints)
         """
@@ -234,12 +234,12 @@ class SimpleHRNet:
 
             out = out.detach().cpu().numpy()
             pts = np.empty((out.shape[0], out.shape[1], 3), dtype=np.float32)
-            # For each human, for each joint: x, y, confidence
+            # For each human, for each joint: y, x, confidence
             for i, human in enumerate(out):
                 for j, joint in enumerate(human):
                     pt = np.unravel_index(np.argmax(joint), (self.resolution[0] // 4, self.resolution[1] // 4))
-                    # 0: pt_x / (width // 4) * (bb_x2 - bb_x1) + bb_x1
-                    # 1: pt_y / (height // 4) * (bb_y2 - bb_y1) + bb_y1
+                    # 0: pt_y / (height // 4) * (bb_y2 - bb_y1) + bb_y1
+                    # 1: pt_x / (width // 4) * (bb_x2 - bb_x1) + bb_x1
                     # 2: confidences
                     pts[i, j, 0] = pt[0] * 1. / (self.resolution[0] // 4) * (boxes[i][3] - boxes[i][1]) + boxes[i][1]
                     pts[i, j, 1] = pt[1] * 1. / (self.resolution[1] // 4) * (boxes[i][2] - boxes[i][0]) + boxes[i][0]
@@ -341,12 +341,12 @@ class SimpleHRNet:
 
         out = out.detach().cpu().numpy()
         pts = np.empty((out.shape[0], out.shape[1], 3), dtype=np.float32)
-        # For each human, for each joint: x, y, confidence
+        # For each human, for each joint: y, x, confidence
         for i, human in enumerate(out):
             for j, joint in enumerate(human):
                 pt = np.unravel_index(np.argmax(joint), (self.resolution[0] // 4, self.resolution[1] // 4))
-                # 0: pt_x / (width // 4) * (bb_x2 - bb_x1) + bb_x1
-                # 1: pt_y / (height // 4) * (bb_y2 - bb_y1) + bb_y1
+                # 0: pt_y / (height // 4) * (bb_y2 - bb_y1) + bb_y1
+                # 1: pt_x / (width // 4) * (bb_x2 - bb_x1) + bb_x1
                 # 2: confidences
                 pts[i, j, 0] = pt[0] * 1. / (self.resolution[0] // 4) * (boxes[i][3] - boxes[i][1]) + boxes[i][1]
                 pts[i, j, 1] = pt[1] * 1. / (self.resolution[1] // 4) * (boxes[i][2] - boxes[i][0]) + boxes[i][0]

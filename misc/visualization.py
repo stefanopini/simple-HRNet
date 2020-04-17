@@ -76,7 +76,7 @@ def draw_points(image, points, color_palette='tab20', palette_samples=16):
         image: image in opencv format
         points: list of points to be drawn.
             Shape: (nof_points, 3)
-            Format: each point should contain (x, y, confidence)
+            Format: each point should contain (y, x, confidence)
         color_palette: name of a matplotlib color palette
             Default: 'tab20'
         palette_samples: number of different colors sampled from the `color_palette`
@@ -113,7 +113,7 @@ def draw_skeleton(image, points, skeleton, color_palette='Set2', palette_samples
         image: image in opencv format
         points: list of points to be drawn.
             Shape: (nof_points, 3)
-            Format: each point should contain (x, y, confidence)
+            Format: each point should contain (y, x, confidence)
         skeleton: list of joints to be drawn
             Shape: (nof_joints, 2)
             Format: each joint should contain (point_a, point_b) where `point_a` and `point_b` are an index in `points`
@@ -157,7 +157,7 @@ def draw_points_and_skeleton(image, points, skeleton, points_color_palette='tab2
         image: image in opencv format
         points: list of points to be drawn.
             Shape: (nof_points, 3)
-            Format: each point should contain (x, y, confidence)
+            Format: each point should contain (y, x, confidence)
         skeleton: list of joints to be drawn
             Shape: (nof_joints, 2)
             Format: each joint should contain (point_a, point_b) where `point_a` and `point_b` are an index in `points`
