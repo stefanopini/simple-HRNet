@@ -348,8 +348,8 @@ class SimpleHRNet:
                 # 0: pt_x / (width // 4) * (bb_x2 - bb_x1) + bb_x1
                 # 1: pt_y / (height // 4) * (bb_y2 - bb_y1) + bb_y1
                 # 2: confidences
-                pts[i, j, 0] = pt[0] * 1. / (self.resolution[0] // 4) * (boxes[i][3] - boxes[i][1]) + boxes[i][1]
-                pts[i, j, 1] = pt[1] * 1. / (self.resolution[1] // 4) * (boxes[i][2] - boxes[i][0]) + boxes[i][0]
+                pts[i, j, 0] = pt[0] * 1. / (self.resolution[1] // 4) * (boxes[i][3] - boxes[i][1]) + boxes[i][1]
+                pts[i, j, 1] = pt[1] * 1. / (self.resolution[0] // 4) * (boxes[i][2] - boxes[i][0]) + boxes[i][0]
                 pts[i, j, 2] = joint[pt]
 
         if self.multiperson:
