@@ -12,7 +12,7 @@ from SimpleHRNet import SimpleHRNet
 from misc.visualization import check_video_rotation
 
 
-def main(filename, hrnet_m, hrnet_c, hrnet_j, hrnet_weights, image_resolution, single_person,
+def main(filename, hrnet_m, hrnet_c, hrnet_j, hrnet_weights, image_resolution, single_person, use_tiny_yolo,
          max_batch_size, csv_output_filename, csv_delimiter, device):
     if device is not None:
         device = torch.device(device)
@@ -36,6 +36,15 @@ def main(filename, hrnet_m, hrnet_c, hrnet_j, hrnet_weights, image_resolution, s
     with open(csv_output_filename, 'wt', newline='') as fd:
         csv_output = csv.writer(fd, delimiter=csv_delimiter)
 
+        if use_tiny_yolo:
+             yolo_model_def="./models/detectors/yolo/config/yolov3-tiny.cfg"
+             yolo_class_path="./models/detectors/yolo/data/coco.names"
+             yolo_weights_path="./models/detectors/yolo/weights/yolov3-tiny.weights"
+        else:
+             yolo_model_def="./models/detectors/yolo/config/yolov3.cfg"
+             yolo_class_path="./models/detectors/yolo/data/coco.names"
+             yolo_weights_path="./models/detectors/yolo/weights/yolov3.weights"
+
         model = SimpleHRNet(
             hrnet_c,
             hrnet_j,
@@ -44,6 +53,9 @@ def main(filename, hrnet_m, hrnet_c, hrnet_j, hrnet_weights, image_resolution, s
             resolution=image_resolution,
             multiperson=not single_person,
             max_batch_size=max_batch_size,
+            yolo_model_def=yolo_model_def,
+            yolo_class_path=yolo_class_path,
+            yolo_weights_path=yolo_weights_path,
             device=device
         )
 
@@ -91,6 +103,9 @@ if __name__ == '__main__':
     parser.add_argument("--single_person",
                         help="disable the multiperson detection (YOLOv3 or an equivalen detector is required for"
                              "multiperson detection)",
+                        action="store_true")
+    parser.add_argument("--use_tiny_yolo",
+                        help="Use YOLOv3-tiny in place of YOLOv3 (faster person detection). Ignored if --single_person",
                         action="store_true")
     parser.add_argument("--max_batch_size", help="maximum batch size used for inference", type=int, default=16)
     parser.add_argument("--csv_output_filename", help="filename of the csv that will be written.", type=str,

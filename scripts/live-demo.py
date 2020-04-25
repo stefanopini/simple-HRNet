@@ -14,7 +14,7 @@ from misc.visualization import draw_points, draw_skeleton, draw_points_and_skele
 from misc.utils import find_person_id_associations
 
 def main(camera_id, filename, hrnet_m, hrnet_c, hrnet_j, hrnet_weights, hrnet_joints_set, image_resolution,
-         single_person, disable_tracking, max_batch_size, disable_vidgear, save_video, video_format,
+         single_person, use_tiny_yolo, disable_tracking, max_batch_size, disable_vidgear, save_video, video_format,
          video_framerate, device):
     if device is not None:
         device = torch.device(device)
@@ -43,6 +43,15 @@ def main(camera_id, filename, hrnet_m, hrnet_c, hrnet_j, hrnet_weights, hrnet_jo
         else:
             video = CamGear(camera_id).start()
 
+    if use_tiny_yolo:
+         yolo_model_def="./models/detectors/yolo/config/yolov3-tiny.cfg"
+         yolo_class_path="./models/detectors/yolo/data/coco.names"
+         yolo_weights_path="./models/detectors/yolo/weights/yolov3-tiny.weights"
+    else:
+         yolo_model_def="./models/detectors/yolo/config/yolov3.cfg"
+         yolo_class_path="./models/detectors/yolo/data/coco.names"
+         yolo_weights_path="./models/detectors/yolo/weights/yolov3.weights"
+
     model = SimpleHRNet(
         hrnet_c,
         hrnet_j,
@@ -52,6 +61,9 @@ def main(camera_id, filename, hrnet_m, hrnet_c, hrnet_j, hrnet_weights, hrnet_jo
         multiperson=not single_person,
         return_bounding_boxes=not disable_tracking,
         max_batch_size=max_batch_size,
+        yolo_model_def=yolo_model_def,
+        yolo_class_path=yolo_class_path,
+        yolo_weights_path=yolo_weights_path,
         device=device
     )
 
@@ -149,6 +161,9 @@ if __name__ == '__main__':
     parser.add_argument("--single_person",
                         help="disable the multiperson detection (YOLOv3 or an equivalen detector is required for"
                              "multiperson detection)",
+                        action="store_true")
+    parser.add_argument("--use_tiny_yolo",
+                        help="Use YOLOv3-tiny in place of YOLOv3 (faster person detection). Ignored if --single_person",
                         action="store_true")
     parser.add_argument("--disable_tracking",
                         help="disable the skeleton tracking and temporal smoothing functionality",
