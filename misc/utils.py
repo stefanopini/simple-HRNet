@@ -340,7 +340,11 @@ def bbox_iou(bbox_a, bbox_b):
 # Bounding box/pose similarity and association
 def oks_iou(g, d, a_g, a_d, sigmas=None, in_vis_thre=None):
     if not isinstance(sigmas, np.ndarray):
-        sigmas = np.array([.26, .25, .25, .35, .35, .79, .79, .72, .72, .62, .62, 1.07, 1.07, .87, .87, .89, .89])/10.0
+        if d.shape[1] == 17:  # COCO
+            sigmas = np.array(
+                [.26, .25, .25, .35, .35, .79, .79, .72, .72, .62, .62, 1.07, 1.07, .87, .87, .89, .89]) / 10.0
+        else:  # MPII and others
+            sigmas = np.ones((d.shape[1],), dtype=np.float32) / 10.0
     vars = (sigmas * 2) ** 2
     yg = g[:, 0]
     xg = g[:, 1]
