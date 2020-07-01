@@ -18,6 +18,7 @@ This repository provides:
 - **NEW** Support for "SimpleBaselines" model based on ResNet - compatible with official weights (``pose_resnet_*``).
 - **NEW** Support for multi-GPU inference.
 - **NEW** Add option for using YOLOv3-tiny (faster, but less accurate person detection).
+- **NEW** Add options for retrieving yolo bounding boxes and HRNet heatmaps.
 - Multi-person support with
  [YOLOv3](https://github.com/eriklindernoren/PyTorch-YOLOv3/tree/47b7c912877ca69db35b8af3a38d6522681b3bb3) 
  (enabled by default).  
@@ -25,18 +26,16 @@ This repository provides:
 - A relatively-simple code for training and testing the HRNet network.
 - A specific script for training the network on the COCO dataset. 
  
-#### Examples
+### Examples
 
 <table>
  <tr>
-  </td><td align="center"><img src="./gifs/gif-01+output.gif" width="100%" height="auto" /></td>
- </tr>
- <tr>
-  <td align="center"><img src="./gifs/gif-02+output.gif" width="100%" height="auto" /></td>
+  <td align="center"><img src="./gifs/gif-01-output.gif" width="100%" height="auto" /></td>
+  <td align="center"><img src="./gifs/gif-02-output.gif" width="100%" height="auto" /></td>
  </tr>
 </table>
 
-#### Class usage
+### Class usage
 
 ```
 import cv2
@@ -48,7 +47,41 @@ image = cv2.imread("image.png", cv2.IMREAD_COLOR)
 joints = model.predict(image)
 ```
 
-#### Running the live demo
+The most useful parameters of the `__init__` function are:
+<table>
+ <tr>
+  <td>c</td><td>number of channels (HRNet: 32, 48; PoseResNet: resnet size)</td>
+ </tr>
+ <tr>
+  <td>nof_joints</td><td>number of joints (COCO: 17, MPII: 16)</td>
+ </tr>
+ <tr>
+  <td>checkpoint_path</td><td>path of the (official) weights to be loaded</td>
+ </tr>
+ <tr>
+  <td>model_name</td><td>'HRNet' or 'PoseResNet'</td>
+ </tr>
+ <tr>
+  <td>resolution</td><td>image resolution, it depends on the loaded weights</td>
+ </tr>
+ <tr>
+  <td>multiperson</td><td>enable multiperson prediction</td>
+ </tr>
+ <tr>
+  <td>return_heatmaps</td><td>the `predict` method returns also the heatmaps</td>
+ </tr>
+ <tr>
+  <td>return_bounding_boxes</td><td>the `predict` method returns also the bounding boxes (useful in conjunction with `multiperson`</td>
+ </tr>
+ <tr>
+  <td>max_batch_size</td><td>maximum batch size used in hrnet inference</td>
+ </tr>
+ <tr>
+  <td>device</td><td>device (cpu or cuda)</td>
+ </tr>
+</table>
+
+### Running the live demo
 
 From a connected camera:
 ```
@@ -64,7 +97,7 @@ For help:
 python scripts/live-demo.py --help
 ```
 
-#### Extracting keypoints:
+### Extracting keypoints:
 
 From a saved video:
 ```
@@ -76,7 +109,7 @@ For help:
 python scripts/extract-keypoints.py --help
 ```
 
-#### Running the training script
+### Running the training script
 
 ```
 python scripts/train_coco.py
@@ -87,7 +120,7 @@ For help:
 python scripts/train_coco.py --help
 ```
 
-#### Installation instructions
+### Installation instructions
 
 - Clone the repository  
  ``git clone https://github.com/stefanopini/simple-HRNet.git``
@@ -103,7 +136,7 @@ python scripts/train_coco.py --help
   - MPII w32 256x256 (MPII human joints)  
     [pose_hrnet_w32_256x256.pth](https://drive.google.com/open?id=1_wn2ifmoQprBrFvUCDedjPON4Y6jsN-v)
 
-  Remember to set the parameters of SimpleHRNet accordingly.
+  Remember to set the parameters of SimpleHRNet accordingly (in particular `c`, `nof_joints`, and `resolution`).
 - For multi-person support:
     - Get YOLOv3:
         - Clone [YOLOv3](https://github.com/eriklindernoren/PyTorch-YOLOv3/tree/47b7c912877ca69db35b8af3a38d6522681b3bb3) 
