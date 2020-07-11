@@ -459,8 +459,8 @@ class COCODataset(Dataset):
 
     def _generate_target(self, joints, joints_vis):
         """
-        :param joints:  [nof_joints, 3]
-        :param joints_vis: [nof_joints, 3]
+        :param joints:  [nof_joints, 2]
+        :param joints_vis: [nof_joints, 2]
         :return: target, target_weight(1: visible, 0: invisible)
         """
         target_weight = np.ones((self.nof_joints, 1), dtype=np.float32)
