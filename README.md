@@ -71,7 +71,8 @@ The most useful parameters of the `__init__` function are:
   <td>return_heatmaps</td><td>the `predict` method returns also the heatmaps</td>
  </tr>
  <tr>
-  <td>return_bounding_boxes</td><td>the `predict` method returns also the bounding boxes (useful in conjunction with `multiperson`</td>
+  <td>return_bounding_boxes</td><td>the `predict` method returns also the bounding boxes (useful in conjunction with 
+  `multiperson`)</td>
  </tr>
  <tr>
   <td>max_batch_size</td><td>maximum batch size used in hrnet inference</td>
