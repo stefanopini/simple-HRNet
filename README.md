@@ -25,6 +25,8 @@ This repository provides:
 - A reference code that runs a live demo reading frames from a webcam or a video file.
 - A relatively-simple code for training and testing the HRNet network.
 - A specific script for training the network on the COCO dataset. 
+
+If you are interested in **HigherHRNet**, please look at [*simple-HigherHRNet*](https://github.com/stefanopini/simple-HigherHRNet) 
  
 ### Examples
 
