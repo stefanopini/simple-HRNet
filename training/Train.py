@@ -285,19 +285,19 @@ class Train(object):
                 # Evaluate accuracy
                 # Get predictions on the input
                 accs, avg_acc, cnt, joints_preds, joints_target = \
-                    self.ds_train.evaluate_accuracy(output, target)
+                    self.ds_val.evaluate_accuracy(output, target)
 
-                self.mean_loss_train += loss.item()
-                self.mean_acc_train += avg_acc.item()
+                self.mean_loss_val += loss.item()
+                self.mean_acc_val += avg_acc.item()
                 if self.use_tensorboard:
                     self.summary_writer.add_scalar('val_loss', loss.item(),
-                                                   global_step=step + self.epoch * self.len_dl_train)
+                                                   global_step=step + self.epoch * self.len_dl_val)
                     self.summary_writer.add_scalar('val_acc', avg_acc.item(),
-                                                   global_step=step + self.epoch * self.len_dl_train)
+                                                   global_step=step + self.epoch * self.len_dl_val)
                     if step == 0:
                         save_images(image, target, joints_target, output, joints_preds,
                                     joints_data['joints_visibility'], self.summary_writer,
-                                    step=step + self.epoch * self.len_dl_train, prefix='val_')
+                                    step=step + self.epoch * self.len_dl_val, prefix='val_')
 
         self.mean_loss_val /= len(self.dl_val)
         self.mean_acc_val /= len(self.dl_val)

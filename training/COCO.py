@@ -216,7 +216,7 @@ class COCOTrain(Train):
                 # Evaluate accuracy
                 # Get predictions on the resized images (given as input)
                 accs, avg_acc, cnt, joints_preds, joints_target = \
-                    self.ds_train.evaluate_accuracy(output, target)
+                    self.ds_val.evaluate_accuracy(output, target)
 
                 # Original
                 num_images = image.shape[0]
@@ -251,7 +251,7 @@ class COCOTrain(Train):
                     if step == 0:
                         save_images(image, target, joints_target, output, joints_preds,
                                     joints_data['joints_visibility'], self.summary_writer,
-                                    step=step + self.epoch * self.len_dl_train, prefix='test_')
+                                    step=step + self.epoch * self.len_dl_val, prefix='val_')
 
         self.mean_loss_val /= len(self.dl_val)
         self.mean_acc_val /= len(self.dl_val)
