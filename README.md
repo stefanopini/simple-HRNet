@@ -171,7 +171,9 @@ in the folder ``./models/detectors`` and change the folder name from ``PyTorch-Y
     ```
 - If you want to run the training script on COCO `scripts/train_coco.py`, you have to build the `nms` module first.  
   Please note that a linux machine with CUDA is currently required. 
-  Built it with either: 
+  Build it with either: 
   - `cd misc; make` or
   - `cd misc/nms; python setup_linux.py build_ext --inplace`  
-    
+  
+  You may need to add the `./misc/nms` directory in the `PYTHONPATH` variable:  
+  `export PYTHONPATH="<path-to-simple-HRNet>/misc/nms:$PYTHONPATH"`
