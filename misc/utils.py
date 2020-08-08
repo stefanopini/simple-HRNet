@@ -240,7 +240,7 @@ def evaluate_pck_accuracy(output, target, hm_type='gaussian', thr=0.5):
             avg_acc = avg_acc + acc[i]
             cnt += 1
 
-    avg_acc = avg_acc / cnt if cnt != 0 else 0
+    avg_acc = avg_acc / cnt if cnt != 0 else torch.tensor(0)
     return acc, avg_acc, cnt, pred, target
 #
 #
