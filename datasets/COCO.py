@@ -245,7 +245,6 @@ class COCODataset(Dataset):
 
         # Read the image from disk
         image = cv2.imread(joints_data['imgPath'], cv2.IMREAD_COLOR | cv2.IMREAD_IGNORE_ORIENTATION)
-        print(joints_data['imgPath'])
 
         if self.color_rgb:
             image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
