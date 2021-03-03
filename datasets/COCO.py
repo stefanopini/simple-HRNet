@@ -220,7 +220,7 @@ class COCODataset(Dataset):
                 self.data.append({
                     'imgId': imgId,
                     'annId': obj['id'],
-                    'imgPath': os.path.join(self.root_path, self.data_version, '%012d.jpg' % imgId),
+                    'imgPath': os.path.join(self.root_path, "images", self.data_version,'%012d.jpg' % imgId),
                     'center': center,
                     'scale': scale,
                     'joints': joints,
@@ -245,6 +245,7 @@ class COCODataset(Dataset):
 
         # Read the image from disk
         image = cv2.imread(joints_data['imgPath'], cv2.IMREAD_COLOR | cv2.IMREAD_IGNORE_ORIENTATION)
+        print(joints_data['imgPath'])
 
         if self.color_rgb:
             image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
