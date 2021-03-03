@@ -156,6 +156,23 @@ in the folder ``./models/detectors`` and change the folder name from ``PyTorch-Y
     simple-HRNet
     ├── datasets                (datasets - for training only)
     │  └── COCO                 (COCO dataset)
+        └── annotations
+            └── person_keypoints_train2017.json
+            └── person_keypoints_val2017.json
+        └── person_detection_results
+            └── COCO_val2017_detections_AP_H_56_person.json
+            └── COCO_test-dev2017_detections_AP_H_609_person.json
+        └── images
+            └── train2017
+                └── 000000000009.jpg
+                └── 000000000025.jpg
+                └── 000000000030.jpg
+                └── ... 
+            └── val2017
+                └── 000000000139.jpg
+                └── 000000000285.jpg
+                └── 000000000632.jpg
+                └── ... 
     ├── losses                  (loss functions)
     ├── misc                    (misc)
     │  └── nms                  (CUDA nms module - for training only)
