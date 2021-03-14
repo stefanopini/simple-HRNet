@@ -5,7 +5,7 @@ from torchvision.transforms import transforms
 
 from models.hrnet import HRNet
 from models.poseresnet import PoseResNet
-from models.detectors.YOLOv3 import YOLOv3
+# from models.detectors.YOLOv3 import YOLOv3  # import only when multi-person is enabled
 
 
 class SimpleHRNet:
@@ -83,6 +83,9 @@ class SimpleHRNet:
         self.yolo_class_path = yolo_class_path
         self.yolo_weights_path = yolo_weights_path
         self.device = device
+
+        if self.multiperson:
+            from models.detectors.YOLOv3 import YOLOv3
 
         if model_name in ('HRNet', 'hrnet'):
             self.model = HRNet(c=c, nof_joints=nof_joints)
