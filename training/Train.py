@@ -181,8 +181,14 @@ class Train(object):
         #
         # load pre-trained weights (such as those pre-trained on imagenet)
         if self.pretrained_weight_path is not None:
-            self.model.load_state_dict(torch.load(self.pretrained_weight_path, map_location=self.device), strict=True)
+            missing_keys, unexpected_keys = self.model.load_state_dict(
+                torch.load(self.pretrained_weight_path, map_location=self.device),
+                strict=False  # strict=False is required to load models pre-trained on imagenet
+            )
             print('Pre-trained weights loaded.')
+            if len(missing_keys) > 0 or len(unexpected_keys) > 0:
+                print('Pre-trained weights missing keys:', missing_keys)
+                print('Pre-trained weights unexpected keys:', unexpected_keys)
 
         #
         # load previous checkpoint
