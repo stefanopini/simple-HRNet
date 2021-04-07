@@ -104,7 +104,7 @@ python scripts/live-demo.py --help
 
 From a saved video:
 ```
-python scripts/extract-keypoints.py --filename video.mp4
+python scripts/extract-keypoints.py --format csv --filename video.mp4
 ```
 
 For help:
