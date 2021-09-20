@@ -25,6 +25,7 @@ This repository provides:
 - A reference code that runs a live demo reading frames from a webcam or a video file.
 - A relatively-simple code for training and testing the HRNet network.
 - A specific script for training the network on the COCO dataset. 
+- **NEW** A [Google Colab notebook](https://github.com/stefanopini/simple-HRNet/issues/84#issuecomment-908199736) showcasing how to use this repository - Sincere thanks to [@basicvisual](https://github.com/basicvisual) and [@wuyenlin](https://github.com/wuyenlin).
 
 If you are interested in **HigherHRNet**, please look at [*simple-HigherHRNet*](https://github.com/stefanopini/simple-HigherHRNet) 
  
@@ -177,3 +178,8 @@ in the folder ``./models/detectors`` and change the folder name from ``PyTorch-Y
   
   You may need to add the `./misc/nms` directory in the `PYTHONPATH` variable:  
   `export PYTHONPATH="<path-to-simple-HRNet>/misc/nms:$PYTHONPATH"`
+
+### Google Colab notebook
+Thanks to the great work of [@basicvisual](https://github.com/basicvisual) and [@wuyenlin](https://github.com/wuyenlin), you can also try this repository online on Google Colab.
+More details and the notebook URL are available in [this issue](https://github.com/stefanopini/simple-HRNet/issues/84#issuecomment-908199736).  
+Please make sure to make a copy on your own Google Drive and to change the Colab "Runtime type" from CPU to GPU or TPU.
