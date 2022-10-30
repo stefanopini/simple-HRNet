@@ -73,13 +73,15 @@ def main(camera_id, filename, hrnet_m, hrnet_c, hrnet_j, hrnet_weights, hrnet_jo
         prev_pts = None
         prev_person_ids = None
         next_person_id = 0
-
+    t_start = time.time()
     while True:
         t = time.time()
 
         if filename is not None or disable_vidgear:
             ret, frame = video.read()
             if not ret:
+                t_end = time.time()
+                print("\n Total Time: " ,t_end-t_start)
                 break
             if rotation_code is not None:
                 frame = cv2.rotate(frame, rotation_code)
@@ -119,10 +121,12 @@ def main(camera_id, filename, hrnet_m, hrnet_c, hrnet_j, hrnet_weights, hrnet_jo
             frame = draw_points_and_skeleton(frame, pt, joints_dict()[hrnet_joints_set]['skeleton'], person_index=pid,
                                              points_color_palette='gist_rainbow', skeleton_color_palette='jet',
                                              points_palette_samples=10)
+        # for box in boxes:
+        #     cv2.rectangle(frame,(box[0],box[1]),(box[2],box[3]),(255,255,255),2)
 
         fps = 1. / (time.time() - t)
-        print('\rframerate: %f fps' % fps, end='')
-
+        print('\rframerate: %f fps, for %d person(s) ' % (fps,len(pts)), end='')
+        
         if has_display:
             cv2.imshow('frame.png', frame)
             k = cv2.waitKey(1)

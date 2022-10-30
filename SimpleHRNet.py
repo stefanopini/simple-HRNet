@@ -209,8 +209,8 @@ class SimpleHRNet:
             detections = detections[detections[:,5] == 0.]
             detections = detections.cpu().numpy()
             nof_people = len(detections) if detections is not None else 0
-            boxes = torch.empty((nof_people, 4), dtype=torch.int32)
-            images = torch.empty((nof_people, 3, self.resolution[0], self.resolution[1]))  # (height, width)
+            boxes = torch.empty((nof_people, 4),device=self.device)
+            images = torch.empty((nof_people, 3, self.resolution[0], self.resolution[1]),device = self.device)  # (height, width)
             heatmaps = np.zeros((nof_people, self.nof_joints, self.resolution[0] // 4, self.resolution[1] // 4),
                                 dtype=np.float32)
 
@@ -238,8 +238,8 @@ class SimpleHRNet:
                         # print(pad)
                         image_crop = np.pad(image_crop,((int(abs(y1_new-y1)), int(abs(y2_new-y2))), (0, 0), (0, 0)))
                         images[i] = self.transform(image_crop)
-                        boxes[i]= torch.tensor([int(x1), int(y1_new), int(x2), int(y2_new)])
-                    
+                        boxes[i]= torch.tensor([x1, y1_new, x2, y2_new])
+
                     elif correction_factor < 1:
                         # increase x side
                         center = x1 + (x2 - x1) // 2
@@ -295,6 +295,7 @@ class SimpleHRNet:
                         # 2: confidences
                             # print(boxes)
                             # print(online_tlwhs)
+
                 pts[i, :, 0] = indicesc[i,:] * dim1 * (boxes[i][3] - boxes[i][1]) + boxes[i][1]
                 pts[i, :, 1] = indices[i,:] *dim2* (boxes[i][2] - boxes[i][0]) + boxes[i][0]
                 pts[i, :, 2] = c[i,:]
