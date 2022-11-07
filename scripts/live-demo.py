@@ -15,7 +15,7 @@ from misc.utils import find_person_id_associations
 
 def main(camera_id, filename, hrnet_m, hrnet_c, hrnet_j, hrnet_weights, hrnet_joints_set, image_resolution,
          single_person, use_tiny_yolo, disable_tracking, max_batch_size, disable_vidgear, save_video, video_format,
-         video_framerate, device,trt_):
+         video_framerate, device,enable_tensorrt):
     if device is not None:
         device = torch.device(device)
     else:
@@ -65,7 +65,7 @@ def main(camera_id, filename, hrnet_m, hrnet_c, hrnet_j, hrnet_weights, hrnet_jo
         yolo_class_path=yolo_class_path,
         yolo_weights_path=yolo_weights_path,
         device=device,
-        trt_=trt_
+        enable_tensorrt=enable_tensorrt
     )
 
     if not disable_tracking:
@@ -187,7 +187,7 @@ if __name__ == '__main__':
                                          "set to `cuda:IDS` to use one or more specific GPUs "
                                          "(e.g. `cuda:0` `cuda:1,2`); "
                                          "set to `cpu` to run on cpu.", type=str, default=None)
-    parser.add_argument("--trt_", help="save output frames into a video.", action="store_true")
+    parser.add_argument("--enable_tensorrt", help="save output frames into a video.", action="store_true")
 
     args = parser.parse_args()
     main(**args.__dict__)

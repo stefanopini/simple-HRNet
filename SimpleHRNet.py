@@ -32,7 +32,7 @@ class SimpleHRNet:
                  yolo_class_path="./models/detectors/yolo/data/coco.names",
                  yolo_weights_path="./models/detectors/yolo/weights/yolov3.weights",
                  device=torch.device("cpu"),
-                 trt_=False):
+                 enable_tensorrt=False):
         """
         Initializes a new SimpleHRNet object.
         HRNet (and YOLOv3) are initialized on the torch.device("device") and
@@ -84,7 +84,7 @@ class SimpleHRNet:
         self.yolo_class_path = yolo_class_path
         self.yolo_weights_path = yolo_weights_path
         self.device = device
-        self.trt_ = trt_
+        self.enable_tensorrt = enable_tensorrt
 
         # if self.multiperson:
         #     from models.detectors.YOLOv3 import YOLOv3
@@ -95,7 +95,7 @@ class SimpleHRNet:
             self.model = PoseResNet(resnet_size=c, nof_joints=nof_joints)
         else:
             raise ValueError('Wrong model name.')
-        if not self.trt_:
+        if not self.enable_tensorrt:
             checkpoint = torch.load(checkpoint_path, map_location=self.device)
             if 'model' in checkpoint:
                 self.model.load_state_dict(checkpoint['model'])
@@ -124,6 +124,7 @@ class SimpleHRNet:
             self.model.eval()
         else:
             from torch2trt import torch2trt,TRTModule
+            ## Load the TRT module.
             self.model = TRTModule()
             self.model.load_state_dict(torch.load(checkpoint_path))
             self.model.cuda().eval()
@@ -204,7 +205,7 @@ class SimpleHRNet:
         else:
             detections = self.detector(image)
             detections = detections.xyxy[0]
-            detections = detections[detections[:,4] >= 0.3]
+            detections = detections[detections[:,4] >= 0.3] ## Should this check be removed?
 
             detections = detections[detections[:,5] == 0.]
             detections = detections.cpu().numpy()
@@ -226,35 +227,30 @@ class SimpleHRNet:
                     # Adapt detections to match HRNet input aspect ratio (as suggested by xtyDoge in issue #14)
                     correction_factor = self.resolution[0] / self.resolution[1] * (x2 - x1) / (y2 - y1)
                     #  correction_factor = 256 / 192 * (x2 - x1) / (y2 - y1)
-                    if correction_factor > 1: ##UPDATE, using zero padding instead of only extending the region
+                    # Using padding instead of just bbox enlargement. This should redice cross person keypoint detection.
+                    if correction_factor > 1:
                         # increase y side
                         center = y1 + (y2 - y1) // 2
                         length = int(round((y2 - y1) * correction_factor))
-                        y1_new = max(0, center - length // 2)
-                        y2_new = min(image.shape[0], center + length // 2)
+                        y1_new = int( center - length // 2)
+                        y2_new = int( center + length // 2)
                         image_crop = image[y1:y2, x1:x2, ::-1]
-                        # print(y1,y2,x1,x2)
-                        # pad = (int(abs(y2_new-y2))), int(abs(y1_new-y1))
-                        # print(pad)
-                        image_crop = np.pad(image_crop,((int(abs(y1_new-y1)), int(abs(y2_new-y2))), (0, 0), (0, 0)))
+                        pad = (int(abs(y1_new-y1))), int(abs(y2_new-y2))
+                        image_crop = np.pad(image_crop,((pad), (0, 0), (0, 0)))
                         images[i] = self.transform(image_crop)
                         boxes[i]= torch.tensor([x1, y1_new, x2, y2_new])
-
+                
                     elif correction_factor < 1:
-                        # increase x side
                         center = x1 + (x2 - x1) // 2
                         length = int(round((x2 - x1) * 1 / correction_factor))
-                        x1_new = max(0, center - length // 2)
-                        x2_new = min(image.shape[1], center + length // 2)
-                        # images[i] = transform(image[y1:y2, x1:x2, ::-1])
+                        x1_new = int( center - length // 2)
+                        x2_new = int( center + length // 2)
                         image_crop = image[y1:y2, x1:x2, ::-1]
-                        # pad = (int(abs(x1_new-x1))), int(abs(x2_new-x2))
-                        # print(pad)
-                        image_crop = np.pad(image_crop,((0, 0), (int(abs(x1_new-x1)), int(abs(x2_new-x2))), (0, 0)))
+                        pad = (abs(x1_new-x1)), int(abs(x2_new-x2))
+                        image_crop = np.pad(image_crop,((0, 0), (pad), (0, 0)))
                         images[i] = self.transform(image_crop)
                         boxes[i]= torch.tensor([x1_new, y1, x2_new, y2])
-                    # images[i] = self.transform(image[y1:y2, x1:x2, ::-1])
-                # print(boxes)
+
         if images.shape[0] > 0:
             images = images.to(self.device)
 
@@ -273,6 +269,7 @@ class SimpleHRNet:
             # out = out.detach().cpu().numpy()
             pts = torch.empty((out.shape[0], out.shape[1], 3), dtype=torch.float32,device=self.device)
             # For each human, for each joint: y, x, confidence
+            # Re-written in torch, maybe it is faster but who knows
             (b,indices)=torch.max(out,dim=2)
             (b,indices)=torch.max(b,dim=2)
             
@@ -281,20 +278,12 @@ class SimpleHRNet:
             dims = (self.resolution[0]//4,self.resolution[1]//4)
             dim1= torch.tensor(1. / dims[0],device=self.device)
             dim2= torch.tensor(1. / dims[1],device=self.device)
-            # print(dim1.dtype)
-            # dim1=1./64
-            # dim2=1/.48
-                # print(time33-time22)
+
             for i in range(0,out.shape[0]):
-                            # pt=cp.asarray(pt)
-                            # print(time.time()-t333)
-                            # pt=torch.cat((pt[0],pt[1]))
-                            # print(pt)
+
                         # 0: pt_y / (height // 4) * (bb_y2 - bb_y1) + bb_y1
                         # 1: pt_x / (width // 4) * (bb_x2 - bb_x1) + bb_x1
                         # 2: confidences
-                            # print(boxes)
-                            # print(online_tlwhs)
 
                 pts[i, :, 0] = indicesc[i,:] * dim1 * (boxes[i][3] - boxes[i][1]) + boxes[i][1]
                 pts[i, :, 1] = indices[i,:] *dim2* (boxes[i][2] - boxes[i][0]) + boxes[i][0]
