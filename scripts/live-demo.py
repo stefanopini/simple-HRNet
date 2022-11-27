@@ -15,7 +15,7 @@ from misc.utils import find_person_id_associations
 
 def main(camera_id, filename, hrnet_m, hrnet_c, hrnet_j, hrnet_weights, hrnet_joints_set, image_resolution,
          single_person, use_tiny_yolo, disable_tracking, max_batch_size, disable_vidgear, save_video, video_format,
-         video_framerate, device):
+         video_framerate, device,enable_tensorrt):
     if device is not None:
         device = torch.device(device)
     else:
@@ -44,13 +44,13 @@ def main(camera_id, filename, hrnet_m, hrnet_c, hrnet_j, hrnet_weights, hrnet_jo
             video = CamGear(camera_id).start()
 
     if use_tiny_yolo:
-         yolo_model_def="./models/detectors/yolo/config/yolov3-tiny.cfg"
-         yolo_class_path="./models/detectors/yolo/data/coco.names"
-         yolo_weights_path="./models/detectors/yolo/weights/yolov3-tiny.weights"
+         yolo_model_def="yolov5n.engine"
+         yolo_class_path=""
+         yolo_weights_path=""
     else:
-         yolo_model_def="./models/detectors/yolo/config/yolov3.cfg"
-         yolo_class_path="./models/detectors/yolo/data/coco.names"
-         yolo_weights_path="./models/detectors/yolo/weights/yolov3.weights"
+         yolo_model_def="yolov5n"
+         yolo_class_path=""
+         yolo_weights_path=""
 
     model = SimpleHRNet(
         hrnet_c,
@@ -64,7 +64,8 @@ def main(camera_id, filename, hrnet_m, hrnet_c, hrnet_j, hrnet_weights, hrnet_jo
         yolo_model_def=yolo_model_def,
         yolo_class_path=yolo_class_path,
         yolo_weights_path=yolo_weights_path,
-        device=device
+        device=device,
+        enable_tensorrt=enable_tensorrt
     )
 
     if not disable_tracking:
@@ -72,13 +73,15 @@ def main(camera_id, filename, hrnet_m, hrnet_c, hrnet_j, hrnet_weights, hrnet_jo
         prev_pts = None
         prev_person_ids = None
         next_person_id = 0
-
+    t_start = time.time()
     while True:
         t = time.time()
 
         if filename is not None or disable_vidgear:
             ret, frame = video.read()
             if not ret:
+                t_end = time.time()
+                print("\n Total Time: " ,t_end-t_start)
                 break
             if rotation_code is not None:
                 frame = cv2.rotate(frame, rotation_code)
@@ -98,6 +101,7 @@ def main(camera_id, filename, hrnet_m, hrnet_c, hrnet_j, hrnet_weights, hrnet_jo
                     person_ids = np.arange(next_person_id, len(pts) + next_person_id, dtype=np.int32)
                     next_person_id = len(pts) + 1
                 else:
+                    # print(boxes)
                     boxes, pts, person_ids = find_person_id_associations(
                         boxes=boxes, pts=pts, prev_boxes=prev_boxes, prev_pts=prev_pts, prev_person_ids=prev_person_ids,
                         next_person_id=next_person_id, pose_alpha=0.2, similarity_threshold=0.4, smoothing_alpha=0.1,
@@ -117,10 +121,12 @@ def main(camera_id, filename, hrnet_m, hrnet_c, hrnet_j, hrnet_weights, hrnet_jo
             frame = draw_points_and_skeleton(frame, pt, joints_dict()[hrnet_joints_set]['skeleton'], person_index=pid,
                                              points_color_palette='gist_rainbow', skeleton_color_palette='jet',
                                              points_palette_samples=10)
+        # for box in boxes:
+        #     cv2.rectangle(frame,(box[0],box[1]),(box[2],box[3]),(255,255,255),2)
 
         fps = 1. / (time.time() - t)
-        print('\rframerate: %f fps' % fps, end='')
-
+        print('\rframerate: %f fps, for %d person(s) ' % (fps,len(pts)), end='')
+        
         if has_display:
             cv2.imshow('frame.png', frame)
             k = cv2.waitKey(1)
@@ -181,5 +187,7 @@ if __name__ == '__main__':
                                          "set to `cuda:IDS` to use one or more specific GPUs "
                                          "(e.g. `cuda:0` `cuda:1,2`); "
                                          "set to `cpu` to run on cpu.", type=str, default=None)
+    parser.add_argument("--enable_tensorrt", help="save output frames into a video.", action="store_true")
+
     args = parser.parse_args()
     main(**args.__dict__)

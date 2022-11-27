@@ -360,7 +360,11 @@ def oks_iou(g, d, a_g, a_d, sigmas=None, in_vis_thre=None):
         if in_vis_thre is not None:
             ind = list(vg > in_vis_thre) and list(vd > in_vis_thre)
             e = e[ind]
+        
+        e = e[e <=2^32 -1]
+
         ious[n_d] = np.sum(np.exp(-e)) / e.shape[0] if e.shape[0] != 0 else 0.0
+
     return ious
 
 

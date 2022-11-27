@@ -3,8 +3,8 @@ import numpy as np
 import torch
 from torchvision.transforms import transforms
 
-from models.hrnet import HRNet
-from models.poseresnet import PoseResNet
+from models_.hrnet import HRNet
+from models_.poseresnet import PoseResNet
 # from models.detectors.YOLOv3 import YOLOv3  # import only when multi-person is enabled
 
 
@@ -28,10 +28,11 @@ class SimpleHRNet:
                  return_heatmaps=False,
                  return_bounding_boxes=False,
                  max_batch_size=32,
-                 yolo_model_def="./models/detectors/yolo/config/yolov3.cfg",
+                 yolo_model_def="yolov5n",
                  yolo_class_path="./models/detectors/yolo/data/coco.names",
                  yolo_weights_path="./models/detectors/yolo/weights/yolov3.weights",
-                 device=torch.device("cpu")):
+                 device=torch.device("cpu"),
+                 enable_tensorrt=False):
         """
         Initializes a new SimpleHRNet object.
         HRNet (and YOLOv3) are initialized on the torch.device("device") and
@@ -83,9 +84,10 @@ class SimpleHRNet:
         self.yolo_class_path = yolo_class_path
         self.yolo_weights_path = yolo_weights_path
         self.device = device
+        self.enable_tensorrt = enable_tensorrt
 
-        if self.multiperson:
-            from models.detectors.YOLOv3 import YOLOv3
+        # if self.multiperson:
+        #     from models.detectors.YOLOv3 import YOLOv3
 
         if model_name in ('HRNet', 'hrnet'):
             self.model = HRNet(c=c, nof_joints=nof_joints)
@@ -93,33 +95,39 @@ class SimpleHRNet:
             self.model = PoseResNet(resnet_size=c, nof_joints=nof_joints)
         else:
             raise ValueError('Wrong model name.')
-
-        checkpoint = torch.load(checkpoint_path, map_location=self.device)
-        if 'model' in checkpoint:
-            self.model.load_state_dict(checkpoint['model'])
-        else:
-            self.model.load_state_dict(checkpoint)
-
-        if 'cuda' in str(self.device):
-            print("device: 'cuda' - ", end="")
-
-            if 'cuda' == str(self.device):
-                # if device is set to 'cuda', all available GPUs will be used
-                print("%d GPU(s) will be used" % torch.cuda.device_count())
-                device_ids = None
+        if not self.enable_tensorrt:
+            checkpoint = torch.load(checkpoint_path, map_location=self.device)
+            if 'model' in checkpoint:
+                self.model.load_state_dict(checkpoint['model'])
             else:
-                # if device is set to 'cuda:IDS', only that/those device(s) will be used
-                print("GPU(s) '%s' will be used" % str(self.device))
-                device_ids = [int(x) for x in str(self.device)[5:].split(',')]
+                self.model.load_state_dict(checkpoint)
 
-            self.model = torch.nn.DataParallel(self.model, device_ids=device_ids)
-        elif 'cpu' == str(self.device):
-            print("device: 'cpu'")
+            if 'cuda' in str(self.device):
+                print("device: 'cuda' - ", end="")
+
+                if 'cuda' == str(self.device):
+                    # if device is set to 'cuda', all available GPUs will be used
+                    print("%d GPU(s) will be used" % torch.cuda.device_count())
+                    device_ids = None
+                else:
+                    # if device is set to 'cuda:IDS', only that/those device(s) will be used
+                    print("GPU(s) '%s' will be used" % str(self.device))
+                    device_ids = [int(x) for x in str(self.device)[5:].split(',')]
+
+                self.model = torch.nn.DataParallel(self.model, device_ids=device_ids)
+            elif 'cpu' == str(self.device):
+                print("device: 'cpu'")
+            else:
+                raise ValueError('Wrong device name.')
+
+            self.model = self.model.to(device)
+            self.model.eval()
         else:
-            raise ValueError('Wrong device name.')
-
-        self.model = self.model.to(device)
-        self.model.eval()
+            from torch2trt import torch2trt,TRTModule
+            ## Load the TRT module.
+            self.model = TRTModule()
+            self.model.load_state_dict(torch.load(checkpoint_path))
+            self.model.cuda().eval()
 
         if not self.multiperson:
             self.transform = transforms.Compose([
@@ -128,12 +136,12 @@ class SimpleHRNet:
             ])
 
         else:
-            self.detector = YOLOv3(model_def=yolo_model_def,
-                                   class_path=yolo_class_path,
-                                   weights_path=yolo_weights_path,
-                                   classes=('person',),
-                                   max_batch_size=self.max_batch_size,
-                                   device=device)
+            temp_ = self.yolo_model_def.split('.')
+            if len(temp_)>1 and temp_[1]=='engine':
+                self.detector = torch.hub.load('ultralytics/yolov5','custom', self.yolo_model_def)
+
+            else:
+                self.detector = torch.hub.load('ultralytics/yolov5', self.yolo_model_def, pretrained=True)
             self.transform = transforms.Compose([
                 transforms.ToPILImage(),
                 transforms.Resize((self.resolution[0], self.resolution[1])),  # (height, width)
@@ -195,38 +203,53 @@ class SimpleHRNet:
                                 dtype=np.float32)
 
         else:
-            detections = self.detector.predict_single(image)
+            detections = self.detector(image)
+            detections = detections.xyxy[0]
+            detections = detections[detections[:,4] >= 0.3] ## Should this check be removed?
 
+            detections = detections[detections[:,5] == 0.]
+            detections = detections.cpu().numpy()
             nof_people = len(detections) if detections is not None else 0
-            boxes = np.empty((nof_people, 4), dtype=np.int32)
-            images = torch.empty((nof_people, 3, self.resolution[0], self.resolution[1]))  # (height, width)
+            boxes = torch.empty((nof_people, 4),device=self.device)
+            images = torch.empty((nof_people, 3, self.resolution[0], self.resolution[1]),device = self.device)  # (height, width)
             heatmaps = np.zeros((nof_people, self.nof_joints, self.resolution[0] // 4, self.resolution[1] // 4),
                                 dtype=np.float32)
 
             if detections is not None:
-                for i, (x1, y1, x2, y2, conf, cls_conf, cls_pred) in enumerate(detections):
-                    x1 = int(round(x1.item()))
-                    x2 = int(round(x2.item()))
-                    y1 = int(round(y1.item()))
-                    y2 = int(round(y2.item()))
+                for i, (x1, y1, x2, y2, conf, cls_pred) in enumerate(detections):
+                    # print(x1,x2,y1,y2)
 
+                    x1 = int(round(x1))#int(round(x1.item()))
+                    x2 = int(round(x2))
+                    y1 = int(round(y1))
+                    y2 = int(round(y2))
+                    # print(x1,x2,y1,y2)
                     # Adapt detections to match HRNet input aspect ratio (as suggested by xtyDoge in issue #14)
                     correction_factor = self.resolution[0] / self.resolution[1] * (x2 - x1) / (y2 - y1)
+                    #  correction_factor = 256 / 192 * (x2 - x1) / (y2 - y1)
+                    # Using padding instead of just bbox enlargement. This should redice cross person keypoint detection.
                     if correction_factor > 1:
                         # increase y side
                         center = y1 + (y2 - y1) // 2
                         length = int(round((y2 - y1) * correction_factor))
-                        y1 = max(0, center - length // 2)
-                        y2 = min(image.shape[0], center + length // 2)
+                        y1_new = int( center - length // 2)
+                        y2_new = int( center + length // 2)
+                        image_crop = image[y1:y2, x1:x2, ::-1]
+                        pad = (int(abs(y1_new-y1))), int(abs(y2_new-y2))
+                        image_crop = np.pad(image_crop,((pad), (0, 0), (0, 0)))
+                        images[i] = self.transform(image_crop)
+                        boxes[i]= torch.tensor([x1, y1_new, x2, y2_new])
+                
                     elif correction_factor < 1:
-                        # increase x side
                         center = x1 + (x2 - x1) // 2
                         length = int(round((x2 - x1) * 1 / correction_factor))
-                        x1 = max(0, center - length // 2)
-                        x2 = min(image.shape[1], center + length // 2)
-
-                    boxes[i] = [x1, y1, x2, y2]
-                    images[i] = self.transform(image[y1:y2, x1:x2, ::-1])
+                        x1_new = int( center - length // 2)
+                        x2_new = int( center + length // 2)
+                        image_crop = image[y1:y2, x1:x2, ::-1]
+                        pad = (abs(x1_new-x1)), int(abs(x2_new-x2))
+                        image_crop = np.pad(image_crop,((0, 0), (pad), (0, 0)))
+                        images[i] = self.transform(image_crop)
+                        boxes[i]= torch.tensor([x1_new, y1, x2_new, y2])
 
         if images.shape[0] > 0:
             images = images.to(self.device)
@@ -243,19 +266,29 @@ class SimpleHRNet:
                     for i in range(0, len(images), self.max_batch_size):
                         out[i:i + self.max_batch_size] = self.model(images[i:i + self.max_batch_size])
 
-            out = out.detach().cpu().numpy()
-            pts = np.empty((out.shape[0], out.shape[1], 3), dtype=np.float32)
+            # out = out.detach().cpu().numpy()
+            pts = torch.empty((out.shape[0], out.shape[1], 3), dtype=torch.float32,device=self.device)
             # For each human, for each joint: y, x, confidence
-            for i, human in enumerate(out):
-                heatmaps[i] = human
-                for j, joint in enumerate(human):
-                    pt = np.unravel_index(np.argmax(joint), (self.resolution[0] // 4, self.resolution[1] // 4))
-                    # 0: pt_y / (height // 4) * (bb_y2 - bb_y1) + bb_y1
-                    # 1: pt_x / (width // 4) * (bb_x2 - bb_x1) + bb_x1
-                    # 2: confidences
-                    pts[i, j, 0] = pt[0] * 1. / (self.resolution[0] // 4) * (boxes[i][3] - boxes[i][1]) + boxes[i][1]
-                    pts[i, j, 1] = pt[1] * 1. / (self.resolution[1] // 4) * (boxes[i][2] - boxes[i][0]) + boxes[i][0]
-                    pts[i, j, 2] = joint[pt]
+            # Re-written in torch, maybe it is faster but who knows
+            (b,indices)=torch.max(out,dim=2)
+            (b,indices)=torch.max(b,dim=2)
+            
+            (c,indicesc)=torch.max(out,dim=3)
+            (c,indicesc)=torch.max(c,dim=2)
+            dims = (self.resolution[0]//4,self.resolution[1]//4)
+            dim1= torch.tensor(1. / dims[0],device=self.device)
+            dim2= torch.tensor(1. / dims[1],device=self.device)
+
+            for i in range(0,out.shape[0]):
+
+                        # 0: pt_y / (height // 4) * (bb_y2 - bb_y1) + bb_y1
+                        # 1: pt_x / (width // 4) * (bb_x2 - bb_x1) + bb_x1
+                        # 2: confidences
+
+                pts[i, :, 0] = indicesc[i,:] * dim1 * (boxes[i][3] - boxes[i][1]) + boxes[i][1]
+                pts[i, :, 1] = indices[i,:] *dim2* (boxes[i][2] - boxes[i][0]) + boxes[i][0]
+                pts[i, :, 2] = c[i,:]
+            pts=pts.cpu().numpy()
 
         else:
             pts = np.empty((0, 0, 3), dtype=np.float32)
@@ -264,7 +297,7 @@ class SimpleHRNet:
         if self.return_heatmaps:
             res.append(heatmaps)
         if self.return_bounding_boxes:
-            res.append(boxes)
+            res.append(boxes.cpu().numpy())
         res.append(pts)
 
         if len(res) > 1:
@@ -301,8 +334,10 @@ class SimpleHRNet:
                                 dtype=np.float32)
 
         else:
-            image_detections = self.detector.predict(images)
+            image_detections = self.detector(images)
+            detections = image_detections.xyxy[0]
 
+            image_detections = detections[detections[:,5] == 0.]
             base_index = 0
             nof_people = int(np.sum([len(d) for d in image_detections if d is not None]))
             boxes = np.empty((nof_people, 4), dtype=np.int32)
