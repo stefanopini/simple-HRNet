@@ -1,5 +1,5 @@
 from torch2trt import torch2trt,TRTModule
-from models_.hrnet import HRNet
+from models.hrnet import HRNet
 import torch
 import argparse
 def arg_pars():
