@@ -1,3 +1,5 @@
+import os
+
 import cv2
 import numpy as np
 import torch
@@ -5,7 +7,6 @@ from torchvision.transforms import transforms
 
 from models.hrnet import HRNet
 from models.poseresnet import PoseResNet
-# from models.detectors.YOLOv3 import YOLOv3  # import only when multi-person is enabled
 
 
 class SimpleHRNet:
@@ -28,7 +29,8 @@ class SimpleHRNet:
                  return_heatmaps=False,
                  return_bounding_boxes=False,
                  max_batch_size=32,
-                 yolo_model_def="yolov5n",
+                 yolo_version='v3',
+                 yolo_model_def="./models/detectors/yolo/config/yolov3.cfg",
                  yolo_class_path="./models/detectors/yolo/data/coco.names",
                  yolo_weights_path="./models/detectors/yolo/weights/yolov3.weights",
                  device=torch.device("cpu"),
@@ -60,6 +62,8 @@ class SimpleHRNet:
             max_batch_size (int): maximum batch size used in hrnet inference.
                 Useless without multiperson=True.
                 Default: 16
+            yolo_version (str): version of YOLO. Supported versions: `v3`, `v5`. Used when multiperson is True.
+                Default: "v3"
             yolo_model_def (str): path to yolo model definition file.
                 Default: "./models/detectors/yolo/config/yolov3.cfg"
             yolo_class_path (str): path to yolo class definition file.
@@ -68,6 +72,9 @@ class SimpleHRNet:
                 Default: "./models/detectors/yolo/weights/yolov3.weights.cfg"
             device (:class:`torch.device`): the hrnet (and yolo) inference will be run on this device.
                 Default: torch.device("cpu")
+            enable_tensorrt (bool): Enables tensorrt inference for HRnet.
+                If enabled, a `.engine` file is expected as `checkpoint_path`.
+                Default: False
         """
 
         self.c = c
@@ -80,14 +87,20 @@ class SimpleHRNet:
         self.return_heatmaps = return_heatmaps
         self.return_bounding_boxes = return_bounding_boxes
         self.max_batch_size = max_batch_size
+        self.yolo_version = yolo_version
         self.yolo_model_def = yolo_model_def
         self.yolo_class_path = yolo_class_path
         self.yolo_weights_path = yolo_weights_path
         self.device = device
         self.enable_tensorrt = enable_tensorrt
 
-        # if self.multiperson:
-        #     from models.detectors.YOLOv3 import YOLOv3
+        if self.multiperson:
+            if self.yolo_version == 'v3':
+                from models.detectors.YOLOv3 import YOLOv3
+            elif self.yolo_version == 'v5':
+                from models.detectors.YOLOv5 import YOLOv5
+            else:
+                raise ValueError('Unsopported YOLO version.')
 
         if model_name in ('HRNet', 'hrnet'):
             self.model = HRNet(c=c, nof_joints=nof_joints)
@@ -95,6 +108,7 @@ class SimpleHRNet:
             self.model = PoseResNet(resnet_size=c, nof_joints=nof_joints)
         else:
             raise ValueError('Wrong model name.')
+
         if not self.enable_tensorrt:
             checkpoint = torch.load(checkpoint_path, map_location=self.device)
             if 'model' in checkpoint:
@@ -123,8 +137,7 @@ class SimpleHRNet:
             self.model = self.model.to(device)
             self.model.eval()
         else:
-            from torch2trt import torch2trt,TRTModule
-            ## Load the TRT module.
+            from torch2trt import TRTModule
             self.model = TRTModule()
             self.model.load_state_dict(torch.load(checkpoint_path))
             self.model.cuda().eval()
@@ -136,12 +149,17 @@ class SimpleHRNet:
             ])
 
         else:
-            temp_ = self.yolo_model_def.split('.')
-            if len(temp_)>1 and temp_[1]=='engine':
-                self.detector = torch.hub.load('ultralytics/yolov5','custom', self.yolo_model_def)
-
+            if self.yolo_version == 'v3':
+                self.detector = YOLOv3(model_def=yolo_model_def,
+                                       class_path=yolo_class_path,
+                                       weights_path=yolo_weights_path,
+                                       classes=('person',),
+                                       max_batch_size=self.max_batch_size,
+                                       device=device)
             else:
-                self.detector = torch.hub.load('ultralytics/yolov5', self.yolo_model_def, pretrained=True)
+                self.detector = YOLOv5(model_def=yolo_model_def,
+                                       device=device)
+
             self.transform = transforms.Compose([
                 transforms.ToPILImage(),
                 transforms.Resize((self.resolution[0], self.resolution[1])),  # (height, width)
@@ -203,53 +221,58 @@ class SimpleHRNet:
                                 dtype=np.float32)
 
         else:
-            detections = self.detector(image)
-            detections = detections.xyxy[0]
-            detections = detections[detections[:,4] >= 0.3] ## Should this check be removed?
-
-            detections = detections[detections[:,5] == 0.]
-            detections = detections.cpu().numpy()
+            detections = self.detector.predict_single(image)
             nof_people = len(detections) if detections is not None else 0
-            boxes = torch.empty((nof_people, 4),device=self.device)
-            images = torch.empty((nof_people, 3, self.resolution[0], self.resolution[1]),device = self.device)  # (height, width)
+            boxes = np.empty((nof_people, 4), dtype=np.int32)
+            # boxes = torch.empty((nof_people, 4),device=self.device)
+            images = torch.empty((nof_people, 3, self.resolution[0], self.resolution[1]), device=self.device)  # (height, width)
             heatmaps = np.zeros((nof_people, self.nof_joints, self.resolution[0] // 4, self.resolution[1] // 4),
                                 dtype=np.float32)
 
             if detections is not None:
-                for i, (x1, y1, x2, y2, conf, cls_pred) in enumerate(detections):
-                    # print(x1,x2,y1,y2)
+                for i, (x1, y1, x2, y2, conf, cls_conf, cls_pred) in enumerate(detections):
+                    x1 = int(round(x1.item()))
+                    x2 = int(round(x2.item()))
+                    y1 = int(round(y1.item()))
+                    y2 = int(round(y2.item()))
 
-                    x1 = int(round(x1))#int(round(x1.item()))
-                    x2 = int(round(x2))
-                    y1 = int(round(y1))
-                    y2 = int(round(y2))
-                    # print(x1,x2,y1,y2)
                     # Adapt detections to match HRNet input aspect ratio (as suggested by xtyDoge in issue #14)
                     correction_factor = self.resolution[0] / self.resolution[1] * (x2 - x1) / (y2 - y1)
-                    #  correction_factor = 256 / 192 * (x2 - x1) / (y2 - y1)
-                    # Using padding instead of just bbox enlargement. This should redice cross person keypoint detection.
+
+                    # Using padding instead of bbox enlargement, this should reduce cross-person keypoint detection
                     if correction_factor > 1:
                         # increase y side
                         center = y1 + (y2 - y1) // 2
                         length = int(round((y2 - y1) * correction_factor))
-                        y1_new = int( center - length // 2)
-                        y2_new = int( center + length // 2)
-                        image_crop = image[y1:y2, x1:x2, ::-1]
-                        pad = (int(abs(y1_new-y1))), int(abs(y2_new-y2))
-                        image_crop = np.pad(image_crop,((pad), (0, 0), (0, 0)))
-                        images[i] = self.transform(image_crop)
-                        boxes[i]= torch.tensor([x1, y1_new, x2, y2_new])
-                
+                        x1_new = x1
+                        x2_new = x2
+                        y1_new = int(center - length // 2)
+                        y2_new = int(center + length // 2)
+                        pad = (int(abs(y1_new - y1))), int(abs(y2_new - y2))
+                        pad_tuple = (pad, (0, 0), (0, 0))
+
                     elif correction_factor < 1:
                         center = x1 + (x2 - x1) // 2
                         length = int(round((x2 - x1) * 1 / correction_factor))
-                        x1_new = int( center - length // 2)
-                        x2_new = int( center + length // 2)
-                        image_crop = image[y1:y2, x1:x2, ::-1]
-                        pad = (abs(x1_new-x1)), int(abs(x2_new-x2))
-                        image_crop = np.pad(image_crop,((0, 0), (pad), (0, 0)))
-                        images[i] = self.transform(image_crop)
-                        boxes[i]= torch.tensor([x1_new, y1, x2_new, y2])
+                        x1_new = int(center - length // 2)
+                        x2_new = int(center + length // 2)
+                        y1_new = y1
+                        y2_new = y2
+                        pad = (abs(x1_new - x1)), int(abs(x2_new - x2))
+                        pad_tuple = ((0, 0), pad, (0, 0))
+                    else:
+                        x1_new = x1
+                        x2_new = x2
+                        y1_new = y1
+                        y2_new = y2
+                        pad_tuple = None
+
+                    image_crop = image[y1:y2, x1:x2, ::-1]
+                    if pad_tuple is not None:
+                        image_crop = np.pad(image_crop, pad_tuple)
+                    images[i] = self.transform(image_crop)
+                    boxes[i] = [x1_new, y1_new, x2_new, y2_new]
+                    # boxes[i] = torch.tensor([x1_new, y1_new, x2_new, y2_new])
 
         if images.shape[0] > 0:
             images = images.to(self.device)
@@ -266,29 +289,39 @@ class SimpleHRNet:
                     for i in range(0, len(images), self.max_batch_size):
                         out[i:i + self.max_batch_size] = self.model(images[i:i + self.max_batch_size])
 
-            # out = out.detach().cpu().numpy()
-            pts = torch.empty((out.shape[0], out.shape[1], 3), dtype=torch.float32,device=self.device)
+            out = out.detach().cpu().numpy()
+            pts = np.empty((out.shape[0], out.shape[1], 3), dtype=np.float32)
             # For each human, for each joint: y, x, confidence
-            # Re-written in torch, maybe it is faster but who knows
-            (b,indices)=torch.max(out,dim=2)
-            (b,indices)=torch.max(b,dim=2)
-            
-            (c,indicesc)=torch.max(out,dim=3)
-            (c,indicesc)=torch.max(c,dim=2)
-            dims = (self.resolution[0]//4,self.resolution[1]//4)
-            dim1= torch.tensor(1. / dims[0],device=self.device)
-            dim2= torch.tensor(1. / dims[1],device=self.device)
+            for i, human in enumerate(out):
+                heatmaps[i] = human
+                for j, joint in enumerate(human):
+                    pt = np.unravel_index(np.argmax(joint), (self.resolution[0] // 4, self.resolution[1] // 4))
+                    # 0: pt_y / (height // 4) * (bb_y2 - bb_y1) + bb_y1
+                    # 1: pt_x / (width // 4) * (bb_x2 - bb_x1) + bb_x1
+                    # 2: confidences
+                    pts[i, j, 0] = pt[0] * 1. / (self.resolution[0] // 4) * (boxes[i][3] - boxes[i][1]) + boxes[i][1]
+                    pts[i, j, 1] = pt[1] * 1. / (self.resolution[1] // 4) * (boxes[i][2] - boxes[i][0]) + boxes[i][0]
+                    pts[i, j, 2] = joint[pt]
 
-            for i in range(0,out.shape[0]):
-
-                        # 0: pt_y / (height // 4) * (bb_y2 - bb_y1) + bb_y1
-                        # 1: pt_x / (width // 4) * (bb_x2 - bb_x1) + bb_x1
-                        # 2: confidences
-
-                pts[i, :, 0] = indicesc[i,:] * dim1 * (boxes[i][3] - boxes[i][1]) + boxes[i][1]
-                pts[i, :, 1] = indices[i,:] *dim2* (boxes[i][2] - boxes[i][0]) + boxes[i][0]
-                pts[i, :, 2] = c[i,:]
-            pts=pts.cpu().numpy()
+            # # Torch alternative, it could be faster
+            # pts = torch.empty((out.shape[0], out.shape[1], 3), dtype=torch.float32,device=self.device)
+            # # For each human, for each joint: y, x, confidence
+            # (b, indices) = torch.max(out, dim=2)
+            # (b, indices) = torch.max(b, dim=2)
+            #
+            # (c, indicesc) = torch.max(out, dim=3)
+            # (c, indicesc) = torch.max(c, dim=2)
+            # dims = (self.resolution[0]//4, self.resolution[1]//4)
+            # dim1 = torch.tensor(1. / dims[0], device=self.device)
+            # dim2 = torch.tensor(1. / dims[1], device=self.device)
+            #
+            # for i in range(0, out.shape[0]):
+            #     pts[i, :, 0] = indicesc[i, :] * dim1 * (boxes[i][3] - boxes[i][1]) + boxes[i][1]
+            #     pts[i, :, 1] = indices[i, :] * dim2 * (boxes[i][2] - boxes[i][0]) + boxes[i][0]
+            #     pts[i, :, 2] = c[i, :]
+            #
+            # pts = pts.cpu().numpy()
+            # boxes = boxes.cpu().numpy()
 
         else:
             pts = np.empty((0, 0, 3), dtype=np.float32)
@@ -297,7 +330,7 @@ class SimpleHRNet:
         if self.return_heatmaps:
             res.append(heatmaps)
         if self.return_bounding_boxes:
-            res.append(boxes.cpu().numpy())
+            res.append(boxes)
         res.append(pts)
 
         if len(res) > 1:
@@ -334,10 +367,8 @@ class SimpleHRNet:
                                 dtype=np.float32)
 
         else:
-            image_detections = self.detector(images)
-            detections = image_detections.xyxy[0]
+            image_detections = self.detector.predict(images)
 
-            image_detections = detections[detections[:,5] == 0.]
             base_index = 0
             nof_people = int(np.sum([len(d) for d in image_detections if d is not None]))
             boxes = np.empty((nof_people, 4), dtype=np.int32)
@@ -356,6 +387,8 @@ class SimpleHRNet:
 
                         # Adapt detections to match HRNet input aspect ratio (as suggested by xtyDoge in issue #14)
                         correction_factor = self.resolution[0] / self.resolution[1] * (x2 - x1) / (y2 - y1)
+
+                        # TODO Use padding instead of bbox enlargement here too
                         if correction_factor > 1:
                             # increase y side
                             center = y1 + (y2 - y1) // 2
