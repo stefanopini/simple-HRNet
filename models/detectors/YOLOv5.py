@@ -1,12 +1,7 @@
 import os
 import sys
-import cv2
 import numpy as np
 import torch
-from torchvision.transforms import transforms
-from models.detectors.YOLOv3 import prepare_data
-
-sys.path.append(os.path.join(os.getcwd(), 'models', 'detectors', 'yolo'))
 
 
 class YOLOv5:
@@ -29,7 +24,7 @@ class YOLOv5:
             # load the pre-trained YOLOv5 in a pre-defined folder
             if not os.path.exists(self.model_folder):
                 os.makedirs(self.model_folder)
-            self.model = torch.hub.load('ultralytics/yolov5', self.model_folder, pretrained=True, device=self.device)
+            self.model = torch.hub.load('ultralytics/yolov5', self.model_def, pretrained=True, device=self.device)
 
         self.model.eval()  # Set in evaluation mode
 

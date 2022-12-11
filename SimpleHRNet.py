@@ -64,7 +64,11 @@ class SimpleHRNet:
                 Default: 16
             yolo_version (str): version of YOLO. Supported versions: `v3`, `v5`. Used when multiperson is True.
                 Default: "v3"
-            yolo_model_def (str): path to yolo model definition file.
+            yolo_model_def (str): path to yolo model definition file. Recommended values:
+                - `./models/detectors/yolo/config/yolov3.cfg` if yolo_version is 'v3'
+                - `./models/detectors/yolo/config/yolov3-tiny.cfg` if yolo_version is 'v3', to use tiny yolo
+                - `yolov5m` if yolo_version is 'v5'
+                - `yolov5m.engine` if yolo_version is 'v5', tensorrt version
                 Default: "./models/detectors/yolo/config/yolov3.cfg"
             yolo_class_path (str): path to yolo class definition file.
                 Default: "./models/detectors/yolo/data/coco.names"

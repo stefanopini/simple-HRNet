@@ -53,10 +53,11 @@ def main(camera_id, filename, hrnet_m, hrnet_c, hrnet_j, hrnet_weights, hrnet_jo
             yolo_weights_path = "./models/detectors/yolo/weights/yolov3.weights"
         yolo_class_path = "./models/detectors/yolo/data/coco.names"
     elif yolo_version == 'v5':
+        # YOLOv5 comes in different sizes: n(ano), s(mall), m(edium), l(arge), x(large)
         if use_tiny_yolo:
-            yolo_model_def = "yolov5n.engine"
+            yolo_model_def = "yolov5n"  # this  is the nano version
         else:
-            yolo_model_def = "yolov5n"
+            yolo_model_def = "yolov5m"  # this  is the medium version
         yolo_class_path = ""
         yolo_weights_path = ""
     else:
@@ -183,8 +184,7 @@ if __name__ == '__main__':
                         type=str, default="v3")
     parser.add_argument("--use_tiny_yolo",
                         help="Use YOLOv3-tiny in place of YOLOv3 (faster person detection) if `yolo_version` is `v3`."
-                             "Use TensorRT version of YOLOv5 (requires running extraction first, see the script "
-                             "`scripts/export-tensorrt-model.py`) if `yolo_version` is `v5`."
+                             "Use YOLOv5n(ano) in place of YOLOv5m(edium) if `yolo_version` is `v5`."
                              "Ignored if --single_person",
                         action="store_true")
     parser.add_argument("--disable_tracking",

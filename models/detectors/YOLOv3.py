@@ -29,10 +29,10 @@ def letterbox(img, new_shape=416, color=(127.5, 127.5, 127.5), mode='auto'):
         ratio = max(new_shape) / max(shape)  # ratio  = new / old
     new_unpad = (int(round(shape[1] * ratio)), int(round(shape[0] * ratio)))
 
-    if mode is 'auto':  # minimum rectangle
+    if mode == 'auto':  # minimum rectangle
         dw = np.mod(new_shape - new_unpad[0], 32) / 2  # width padding
         dh = np.mod(new_shape - new_unpad[1], 32) / 2  # height padding
-    elif mode is 'square':  # square
+    elif mode == 'square':  # square
         dw = (new_shape - new_unpad[0]) / 2  # width padding
         dh = (new_shape - new_unpad[1]) / 2  # height padding
     else:
