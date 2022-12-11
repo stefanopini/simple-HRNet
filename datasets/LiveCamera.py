@@ -3,7 +3,7 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset
 from torchvision import transforms
-from models.detectors.YOLOv3 import YOLOv3
+from models_.detectors.YOLOv3 import YOLOv3
 
 
 class LiveCameraDataset(Dataset):
@@ -27,9 +27,9 @@ class LiveCameraDataset(Dataset):
             ])
 
         else:
-            self.detector = YOLOv3(model_def="./models/detectors/yolo/config/yolov3.cfg",
-                                   class_path="./models/detectors/yolo/data/coco.names",
-                                   weights_path="./models/detectors/yolo/weights/yolov3.weights",
+            self.detector = YOLOv3(model_def="./models_/detectors/yolo/config/yolov3.cfg",
+                                   class_path="./models_/detectors/yolo/data/coco.names",
+                                   weights_path="./models_/detectors/yolo/weights/yolov3.weights",
                                    classes=('person',), device=device)
 
             self.transform = transforms.Compose([

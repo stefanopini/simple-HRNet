@@ -44,13 +44,13 @@ def main(format, filename, hrnet_m, hrnet_c, hrnet_j, hrnet_weights, image_resol
         json_data = {}
 
     if use_tiny_yolo:
-        yolo_model_def = "./models/detectors/yolo/config/yolov3-tiny.cfg"
-        yolo_class_path = "./models/detectors/yolo/data/coco.names"
-        yolo_weights_path = "./models/detectors/yolo/weights/yolov3-tiny.weights"
+        yolo_model_def = "./models_/detectors/yolo/config/yolov3-tiny.cfg"
+        yolo_class_path = "./models_/detectors/yolo/data/coco.names"
+        yolo_weights_path = "./models_/detectors/yolo/weights/yolov3-tiny.weights"
     else:
-        yolo_model_def = "./models/detectors/yolo/config/yolov3.cfg"
-        yolo_class_path = "./models/detectors/yolo/data/coco.names"
-        yolo_weights_path = "./models/detectors/yolo/weights/yolov3.weights"
+        yolo_model_def = "./models_/detectors/yolo/config/yolov3.cfg"
+        yolo_class_path = "./models_/detectors/yolo/data/coco.names"
+        yolo_weights_path = "./models_/detectors/yolo/weights/yolov3.weights"
 
     model = SimpleHRNet(
         hrnet_c,

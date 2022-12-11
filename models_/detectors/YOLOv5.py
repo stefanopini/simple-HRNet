@@ -7,7 +7,7 @@ import torch
 class YOLOv5:
     def __init__(self,
                  model_def='',
-                 model_folder='./models/detectors/yolov5',
+                 model_folder='./models_/detectors/yolov5',
                  conf_thres=0.3,
                  device=torch.device('cpu')):
 

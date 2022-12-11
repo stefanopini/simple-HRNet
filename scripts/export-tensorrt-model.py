@@ -3,7 +3,7 @@ import argparse
 import torch
 from torch2trt import torch2trt, TRTModule
 
-from models.hrnet import HRNet
+from models_.hrnet import HRNet
 
 
 def convert_to_trt(args):

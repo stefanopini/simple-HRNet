@@ -46,12 +46,12 @@ def main(camera_id, filename, hrnet_m, hrnet_c, hrnet_j, hrnet_weights, hrnet_jo
 
     if yolo_version == 'v3':
         if use_tiny_yolo:
-            yolo_model_def = "./models/detectors/yolo/config/yolov3-tiny.cfg"
-            yolo_weights_path = "./models/detectors/yolo/weights/yolov3-tiny.weights"
+            yolo_model_def = "./models_/detectors/yolo/config/yolov3-tiny.cfg"
+            yolo_weights_path = "./models_/detectors/yolo/weights/yolov3-tiny.weights"
         else:
-            yolo_model_def = "./models/detectors/yolo/config/yolov3.cfg"
-            yolo_weights_path = "./models/detectors/yolo/weights/yolov3.weights"
-        yolo_class_path = "./models/detectors/yolo/data/coco.names"
+            yolo_model_def = "./models_/detectors/yolo/config/yolov3.cfg"
+            yolo_weights_path = "./models_/detectors/yolo/weights/yolov3.weights"
+        yolo_class_path = "./models_/detectors/yolo/data/coco.names"
     elif yolo_version == 'v5':
         # YOLOv5 comes in different sizes: n(ano), s(mall), m(edium), l(arge), x(large)
         if use_tiny_yolo:

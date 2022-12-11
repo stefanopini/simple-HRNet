@@ -10,7 +10,7 @@ from losses.loss import JointsMSELoss, JointsOHKMMSELoss
 from misc.checkpoint import load_checkpoint
 from misc.utils import flip_tensor, flip_back
 from misc.visualization import save_images
-from models.hrnet import HRNet
+from models_.hrnet import HRNet
 
 
 class Test(object):

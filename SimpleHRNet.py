@@ -5,8 +5,8 @@ import numpy as np
 import torch
 from torchvision.transforms import transforms
 
-from models.hrnet import HRNet
-from models.poseresnet import PoseResNet
+from models_.hrnet import HRNet
+from models_.poseresnet import PoseResNet
 
 
 class SimpleHRNet:
@@ -30,9 +30,9 @@ class SimpleHRNet:
                  return_bounding_boxes=False,
                  max_batch_size=32,
                  yolo_version='v3',
-                 yolo_model_def="./models/detectors/yolo/config/yolov3.cfg",
-                 yolo_class_path="./models/detectors/yolo/data/coco.names",
-                 yolo_weights_path="./models/detectors/yolo/weights/yolov3.weights",
+                 yolo_model_def="./models_/detectors/yolo/config/yolov3.cfg",
+                 yolo_class_path="./models_/detectors/yolo/data/coco.names",
+                 yolo_weights_path="./models_/detectors/yolo/weights/yolov3.weights",
                  device=torch.device("cpu"),
                  enable_tensorrt=False):
         """
@@ -65,15 +65,15 @@ class SimpleHRNet:
             yolo_version (str): version of YOLO. Supported versions: `v3`, `v5`. Used when multiperson is True.
                 Default: "v3"
             yolo_model_def (str): path to yolo model definition file. Recommended values:
-                - `./models/detectors/yolo/config/yolov3.cfg` if yolo_version is 'v3'
-                - `./models/detectors/yolo/config/yolov3-tiny.cfg` if yolo_version is 'v3', to use tiny yolo
+                - `./models_/detectors/yolo/config/yolov3.cfg` if yolo_version is 'v3'
+                - `./models_/detectors/yolo/config/yolov3-tiny.cfg` if yolo_version is 'v3', to use tiny yolo
                 - `yolov5m` if yolo_version is 'v5'
                 - `yolov5m.engine` if yolo_version is 'v5', tensorrt version
-                Default: "./models/detectors/yolo/config/yolov3.cfg"
+                Default: "./models_/detectors/yolo/config/yolov3.cfg"
             yolo_class_path (str): path to yolo class definition file.
-                Default: "./models/detectors/yolo/data/coco.names"
+                Default: "./models_/detectors/yolo/data/coco.names"
             yolo_weights_path (str): path to yolo pretrained weights file.
-                Default: "./models/detectors/yolo/weights/yolov3.weights.cfg"
+                Default: "./models_/detectors/yolo/weights/yolov3.weights.cfg"
             device (:class:`torch.device`): the hrnet (and yolo) inference will be run on this device.
                 Default: torch.device("cpu")
             enable_tensorrt (bool): Enables tensorrt inference for HRnet.
@@ -100,9 +100,9 @@ class SimpleHRNet:
 
         if self.multiperson:
             if self.yolo_version == 'v3':
-                from models.detectors.YOLOv3 import YOLOv3
+                from models_.detectors.YOLOv3 import YOLOv3
             elif self.yolo_version == 'v5':
-                from models.detectors.YOLOv5 import YOLOv5
+                from models_.detectors.YOLOv5 import YOLOv5
             else:
                 raise ValueError('Unsopported YOLO version.')
 
