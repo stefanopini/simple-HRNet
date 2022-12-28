@@ -67,12 +67,12 @@ class SimpleHRNet:
             yolo_model_def (str): path to yolo model definition file. Recommended values:
                 - `./models_/detectors/yolo/config/yolov3.cfg` if yolo_version is 'v3'
                 - `./models_/detectors/yolo/config/yolov3-tiny.cfg` if yolo_version is 'v3', to use tiny yolo
-                - `yolov5m` if yolo_version is 'v5'
-                - `yolov5m.engine` if yolo_version is 'v5', tensorrt version
+                - yolov5 model name if yolo_version is 'v5', e.g. `yolov5m` (medium), `yolov5n` (nano)
+                - `yolov5m.engine` if yolo_version is 'v5', custom version (e.g. tensorrt model)
                 Default: "./models_/detectors/yolo/config/yolov3.cfg"
-            yolo_class_path (str): path to yolo class definition file.
+            yolo_class_path (str): path to yolov3 class definition file.
                 Default: "./models_/detectors/yolo/data/coco.names"
-            yolo_weights_path (str): path to yolo pretrained weights file.
+            yolo_weights_path (str): path to yolov3 pretrained weights file.
                 Default: "./models_/detectors/yolo/weights/yolov3.weights.cfg"
             device (:class:`torch.device`): the hrnet (and yolo) inference will be run on this device.
                 Default: torch.device("cpu")

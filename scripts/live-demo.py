@@ -58,6 +58,10 @@ def main(camera_id, filename, hrnet_m, hrnet_c, hrnet_j, hrnet_weights, hrnet_jo
             yolo_model_def = "yolov5n"  # this  is the nano version
         else:
             yolo_model_def = "yolov5m"  # this  is the medium version
+        if enable_tensorrt:
+            yolo_trt_filename = yolo_model_def + ".engine"
+            if os.path.exists(yolo_trt_filename):
+                yolo_model_def = yolo_trt_filename
         yolo_class_path = ""
         yolo_weights_path = ""
     else:
@@ -72,6 +76,7 @@ def main(camera_id, filename, hrnet_m, hrnet_c, hrnet_j, hrnet_weights, hrnet_jo
         multiperson=not single_person,
         return_bounding_boxes=not disable_tracking,
         max_batch_size=max_batch_size,
+        yolo_version=yolo_version,
         yolo_model_def=yolo_model_def,
         yolo_class_path=yolo_class_path,
         yolo_weights_path=yolo_weights_path,
@@ -92,7 +97,7 @@ def main(camera_id, filename, hrnet_m, hrnet_c, hrnet_j, hrnet_weights, hrnet_jo
             ret, frame = video.read()
             if not ret:
                 t_end = time.time()
-                print("\n Total Time: " ,t_end-t_start)
+                print("\n Total Time: ", t_end - t_start)
                 break
             if rotation_code is not None:
                 frame = cv2.rotate(frame, rotation_code)
