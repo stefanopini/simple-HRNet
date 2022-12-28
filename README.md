@@ -25,7 +25,7 @@ This repository provides:
 - A relatively-simple code for training and testing the HRNet network.
 - A specific script for training the network on the COCO dataset. 
 - **NEW** An updated [Jupyter Notebook](https://github.com/stefanopini/simple-HRNet/blob/master/SimpleHRNet_notebook.ipynb) compatible with Google Colab showcasing how to use this repository.
-    - [Click here](https://colab.research.google.com/github/stefanopini/simple-HRNet/blob/master/SimpleHRNet_notebook.ipynb) to open the notebook on Colab!
+    - <a href="https://colab.research.google.com/github/stefanopini/simple-HRNet/blob/master/SimpleHRNet_notebook.ipynb"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"></a> [Click here](https://colab.research.google.com/github/stefanopini/simple-HRNet/blob/master/SimpleHRNet_notebook.ipynb) to open the notebook on Colab!
     - Thanks to [@basicvisual](https://github.com/basicvisual) and [@wuyenlin](https://github.com/wuyenlin) for the initial notebook.
 - **NEW** Support for TensorRT (thanks to [@gpastal24](https://github.com/gpastal24), see [#99](https://github.com/stefanopini/simple-HRNet/pull/99) and [#100](https://github.com/stefanopini/simple-HRNet/pull/100)).
 
