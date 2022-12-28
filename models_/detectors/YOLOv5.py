@@ -72,8 +72,8 @@ class YOLOv5:
         image = image.copy()
         if self.trt_model:
             # when running with TensorRT, the image must have fixed size
-            image = letterbox(image, self.image_resolution, stride=self.model.stride,
-                              auto=False)[0]  # padded resize
+            image, (ratiow, ratioh), (dw, dh) = letterbox(image, self.image_resolution, stride=self.model.stride,
+                                               auto=False, scaleFill=False)  # padded resize
 
         if color_mode == 'BGR':
             # all YOLO models expect RGB
@@ -92,7 +92,12 @@ class YOLOv5:
             # adding a fake class confidence to maintain compatibility with YOLOv3
             detections = torch.cat((detections[:, :5], detections[:, 4:5], detections[:, 5:]), dim=1)
 
-            return detections
+        if self.trt_model:
+            # account for the image resize fixing the xyxy locations
+            detections[:, [0, 2]] = (detections[:, [0, 2]] - dw) / ratiow
+            detections[:, [1, 3]] = (detections[:, [1, 3]] - dh) / ratioh
+
+        return detections
 
     def predict(self, images, color_mode='BGR'):
         raise NotImplementedError("Not currently supported.")
