@@ -13,9 +13,10 @@ from SimpleHRNet import SimpleHRNet
 from misc.visualization import draw_points, draw_skeleton, draw_points_and_skeleton, joints_dict, check_video_rotation
 from misc.utils import find_person_id_associations
 
+
 def main(camera_id, filename, hrnet_m, hrnet_c, hrnet_j, hrnet_weights, hrnet_joints_set, image_resolution,
-         single_person, use_tiny_yolo, disable_tracking, max_batch_size, disable_vidgear, save_video, video_format,
-         video_framerate, device):
+         single_person, yolo_version, use_tiny_yolo, disable_tracking, max_batch_size, disable_vidgear, save_video,
+         video_format, video_framerate, device, enable_tensorrt):
     if device is not None:
         device = torch.device(device)
     else:
@@ -43,14 +44,28 @@ def main(camera_id, filename, hrnet_m, hrnet_c, hrnet_j, hrnet_weights, hrnet_jo
         else:
             video = CamGear(camera_id).start()
 
-    if use_tiny_yolo:
-         yolo_model_def="./models/detectors/yolo/config/yolov3-tiny.cfg"
-         yolo_class_path="./models/detectors/yolo/data/coco.names"
-         yolo_weights_path="./models/detectors/yolo/weights/yolov3-tiny.weights"
+    if yolo_version == 'v3':
+        if use_tiny_yolo:
+            yolo_model_def = "./models_/detectors/yolo/config/yolov3-tiny.cfg"
+            yolo_weights_path = "./models_/detectors/yolo/weights/yolov3-tiny.weights"
+        else:
+            yolo_model_def = "./models_/detectors/yolo/config/yolov3.cfg"
+            yolo_weights_path = "./models_/detectors/yolo/weights/yolov3.weights"
+        yolo_class_path = "./models_/detectors/yolo/data/coco.names"
+    elif yolo_version == 'v5':
+        # YOLOv5 comes in different sizes: n(ano), s(mall), m(edium), l(arge), x(large)
+        if use_tiny_yolo:
+            yolo_model_def = "yolov5n"  # this  is the nano version
+        else:
+            yolo_model_def = "yolov5m"  # this  is the medium version
+        if enable_tensorrt:
+            yolo_trt_filename = yolo_model_def + ".engine"
+            if os.path.exists(yolo_trt_filename):
+                yolo_model_def = yolo_trt_filename
+        yolo_class_path = ""
+        yolo_weights_path = ""
     else:
-         yolo_model_def="./models/detectors/yolo/config/yolov3.cfg"
-         yolo_class_path="./models/detectors/yolo/data/coco.names"
-         yolo_weights_path="./models/detectors/yolo/weights/yolov3.weights"
+        raise ValueError('Unsopported YOLO version.')
 
     model = SimpleHRNet(
         hrnet_c,
@@ -61,10 +76,12 @@ def main(camera_id, filename, hrnet_m, hrnet_c, hrnet_j, hrnet_weights, hrnet_jo
         multiperson=not single_person,
         return_bounding_boxes=not disable_tracking,
         max_batch_size=max_batch_size,
+        yolo_version=yolo_version,
         yolo_model_def=yolo_model_def,
         yolo_class_path=yolo_class_path,
         yolo_weights_path=yolo_weights_path,
-        device=device
+        device=device,
+        enable_tensorrt=enable_tensorrt
     )
 
     if not disable_tracking:
@@ -72,13 +89,15 @@ def main(camera_id, filename, hrnet_m, hrnet_c, hrnet_j, hrnet_weights, hrnet_jo
         prev_pts = None
         prev_person_ids = None
         next_person_id = 0
-
+    t_start = time.time()
     while True:
         t = time.time()
 
         if filename is not None or disable_vidgear:
             ret, frame = video.read()
             if not ret:
+                t_end = time.time()
+                print("\n Total Time: ", t_end - t_start)
                 break
             if rotation_code is not None:
                 frame = cv2.rotate(frame, rotation_code)
@@ -118,8 +137,11 @@ def main(camera_id, filename, hrnet_m, hrnet_c, hrnet_j, hrnet_weights, hrnet_jo
                                              points_color_palette='gist_rainbow', skeleton_color_palette='jet',
                                              points_palette_samples=10)
 
+        # for box in boxes:
+        #     cv2.rectangle(frame,(box[0],box[1]),(box[2],box[3]),(255,255,255),2)
+
         fps = 1. / (time.time() - t)
-        print('\rframerate: %f fps' % fps, end='')
+        print('\rframerate: %f fps, for %d person(s) ' % (fps,len(pts)), end='')
 
         if has_display:
             cv2.imshow('frame.png', frame)
@@ -162,8 +184,13 @@ if __name__ == '__main__':
                         help="disable the multiperson detection (YOLOv3 or an equivalen detector is required for"
                              "multiperson detection)",
                         action="store_true")
+    parser.add_argument("--yolo_version",
+                        help="Use the specified version of YOLO. Supported versions: `v3` (default), `v5`.",
+                        type=str, default="v3")
     parser.add_argument("--use_tiny_yolo",
-                        help="Use YOLOv3-tiny in place of YOLOv3 (faster person detection). Ignored if --single_person",
+                        help="Use YOLOv3-tiny in place of YOLOv3 (faster person detection) if `yolo_version` is `v3`."
+                             "Use YOLOv5n(ano) in place of YOLOv5m(edium) if `yolo_version` is `v5`."
+                             "Ignored if --single_person",
                         action="store_true")
     parser.add_argument("--disable_tracking",
                         help="disable the skeleton tracking and temporal smoothing functionality",
@@ -174,12 +201,18 @@ if __name__ == '__main__':
                         action="store_true")  # see https://pypi.org/project/vidgear/
     parser.add_argument("--save_video", help="save output frames into a video.", action="store_true")
     parser.add_argument("--video_format", help="fourcc video format. Common formats: `MJPG`, `XVID`, `X264`."
-                                                     "See http://www.fourcc.org/codecs.php", type=str, default='MJPG')
+                                               "See http://www.fourcc.org/codecs.php", type=str, default='MJPG')
     parser.add_argument("--video_framerate", help="video framerate", type=float, default=30)
     parser.add_argument("--device", help="device to be used (default: cuda, if available)."
                                          "Set to `cuda` to use all available GPUs (default); "
                                          "set to `cuda:IDS` to use one or more specific GPUs "
                                          "(e.g. `cuda:0` `cuda:1,2`); "
                                          "set to `cpu` to run on cpu.", type=str, default=None)
+    parser.add_argument("--enable_tensorrt",
+                        help="Enables tensorrt inference for HRnet. If enabled, a `.engine` file is expected as "
+                             "weights (`--hrnet_weights`). This option should be used only after the HRNet engine "
+                             "file has been generated using the script `scripts/export-tensorrt-model.py`.",
+                        action='store_true')
+
     args = parser.parse_args()
     main(**args.__dict__)

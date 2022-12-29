@@ -15,17 +15,20 @@ This repository provides:
 - A simple ``HRNet`` implementation in PyTorch (>=1.0) - compatible with official weights (``pose_hrnet_*``).
 - A simple class (``SimpleHRNet``) that loads the HRNet network for the human pose estimation, loads the pre-trained weights,
  and make human predictions on a single image or a batch of images.
-- **NEW** Support for "SimpleBaselines" model based on ResNet - compatible with official weights (``pose_resnet_*``).
-- **NEW** Support for multi-GPU inference.
-- **NEW** Add option for using YOLOv3-tiny (faster, but less accurate person detection).
-- **NEW** Add options for retrieving yolo bounding boxes and HRNet heatmaps.
-- Multi-person support with
+- Support for "SimpleBaselines" model based on ResNet - compatible with official weights (``pose_resnet_*``).
+- Support for multi-GPU inference.
+- Add options for retrieving yolo bounding boxes and HRNet heatmaps.
+- **NEW** Multi-person support with
  [YOLOv3](https://github.com/eriklindernoren/PyTorch-YOLOv3/tree/47b7c912877ca69db35b8af3a38d6522681b3bb3) 
- (enabled by default).  
+ (enabled by default), YOLOv3-tiny, or [YOLOv5](https://github.com/ultralytics/yolov5) by Ultralytics.
 - A reference code that runs a live demo reading frames from a webcam or a video file.
 - A relatively-simple code for training and testing the HRNet network.
 - A specific script for training the network on the COCO dataset. 
-- **NEW** A [Google Colab notebook](https://github.com/stefanopini/simple-HRNet/issues/84#issuecomment-908199736) showcasing how to use this repository - Sincere thanks to [@basicvisual](https://github.com/basicvisual) and [@wuyenlin](https://github.com/wuyenlin).
+- **NEW** An updated [Jupyter Notebook](https://github.com/stefanopini/simple-HRNet/blob/master/SimpleHRNet_notebook.ipynb) compatible with Google Colab showcasing how to use this repository.
+    - <a href="https://colab.research.google.com/github/stefanopini/simple-HRNet/blob/master/SimpleHRNet_notebook.ipynb"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"></a> [Click here](https://colab.research.google.com/github/stefanopini/simple-HRNet/blob/master/SimpleHRNet_notebook.ipynb) to open the notebook on Colab!
+    - Thanks to [@basicvisual](https://github.com/basicvisual) and [@wuyenlin](https://github.com/wuyenlin) for the initial notebook.
+- **NEW** Support for TensorRT (thanks to [@gpastal24](https://github.com/gpastal24), see [#99](https://github.com/stefanopini/simple-HRNet/pull/99) and [#100](https://github.com/stefanopini/simple-HRNet/pull/100)).
+
 
 If you are interested in **HigherHRNet**, please look at [*simple-HigherHRNet*](https://github.com/stefanopini/simple-HigherHRNet) 
  
@@ -111,6 +114,24 @@ python scripts/extract-keypoints.py --format csv --filename video.mp4
 For help:
 ```
 python scripts/extract-keypoints.py --help
+```
+
+### Converting the model to TensorRT:
+
+Warning: require the installation of TensorRT (see Nvidia website) and onnx.
+On some platforms, they can be installed with
+```
+pip install tensorrt onnx
+```
+
+Converting in FP16:
+```
+python scripts/export-tensorrt-model.py --device 0 --half
+```
+
+For help:
+```
+python scripts/export-tensorrt-model.py --help
 ```
 
 ### Running the training script

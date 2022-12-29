@@ -1,11 +1,12 @@
+import os
+
 import cv2
 import numpy as np
 import torch
 from torchvision.transforms import transforms
 
-from models.hrnet import HRNet
-from models.poseresnet import PoseResNet
-# from models.detectors.YOLOv3 import YOLOv3  # import only when multi-person is enabled
+from models_.hrnet import HRNet
+from models_.poseresnet import PoseResNet
 
 
 class SimpleHRNet:
@@ -28,10 +29,12 @@ class SimpleHRNet:
                  return_heatmaps=False,
                  return_bounding_boxes=False,
                  max_batch_size=32,
-                 yolo_model_def="./models/detectors/yolo/config/yolov3.cfg",
-                 yolo_class_path="./models/detectors/yolo/data/coco.names",
-                 yolo_weights_path="./models/detectors/yolo/weights/yolov3.weights",
-                 device=torch.device("cpu")):
+                 yolo_version='v3',
+                 yolo_model_def="./models_/detectors/yolo/config/yolov3.cfg",
+                 yolo_class_path="./models_/detectors/yolo/data/coco.names",
+                 yolo_weights_path="./models_/detectors/yolo/weights/yolov3.weights",
+                 device=torch.device("cpu"),
+                 enable_tensorrt=False):
         """
         Initializes a new SimpleHRNet object.
         HRNet (and YOLOv3) are initialized on the torch.device("device") and
@@ -59,14 +62,23 @@ class SimpleHRNet:
             max_batch_size (int): maximum batch size used in hrnet inference.
                 Useless without multiperson=True.
                 Default: 16
-            yolo_model_def (str): path to yolo model definition file.
-                Default: "./models/detectors/yolo/config/yolov3.cfg"
-            yolo_class_path (str): path to yolo class definition file.
-                Default: "./models/detectors/yolo/data/coco.names"
-            yolo_weights_path (str): path to yolo pretrained weights file.
-                Default: "./models/detectors/yolo/weights/yolov3.weights.cfg"
+            yolo_version (str): version of YOLO. Supported versions: `v3`, `v5`. Used when multiperson is True.
+                Default: "v3"
+            yolo_model_def (str): path to yolo model definition file. Recommended values:
+                - `./models_/detectors/yolo/config/yolov3.cfg` if yolo_version is 'v3'
+                - `./models_/detectors/yolo/config/yolov3-tiny.cfg` if yolo_version is 'v3', to use tiny yolo
+                - yolov5 model name if yolo_version is 'v5', e.g. `yolov5m` (medium), `yolov5n` (nano)
+                - `yolov5m.engine` if yolo_version is 'v5', custom version (e.g. tensorrt model)
+                Default: "./models_/detectors/yolo/config/yolov3.cfg"
+            yolo_class_path (str): path to yolov3 class definition file.
+                Default: "./models_/detectors/yolo/data/coco.names"
+            yolo_weights_path (str): path to yolov3 pretrained weights file.
+                Default: "./models_/detectors/yolo/weights/yolov3.weights.cfg"
             device (:class:`torch.device`): the hrnet (and yolo) inference will be run on this device.
                 Default: torch.device("cpu")
+            enable_tensorrt (bool): Enables tensorrt inference for HRnet.
+                If enabled, a `.engine` file is expected as `checkpoint_path`.
+                Default: False
         """
 
         self.c = c
@@ -79,13 +91,20 @@ class SimpleHRNet:
         self.return_heatmaps = return_heatmaps
         self.return_bounding_boxes = return_bounding_boxes
         self.max_batch_size = max_batch_size
+        self.yolo_version = yolo_version
         self.yolo_model_def = yolo_model_def
         self.yolo_class_path = yolo_class_path
         self.yolo_weights_path = yolo_weights_path
         self.device = device
+        self.enable_tensorrt = enable_tensorrt
 
         if self.multiperson:
-            from models.detectors.YOLOv3 import YOLOv3
+            if self.yolo_version == 'v3':
+                from models_.detectors.YOLOv3 import YOLOv3
+            elif self.yolo_version == 'v5':
+                from models_.detectors.YOLOv5 import YOLOv5
+            else:
+                raise ValueError('Unsopported YOLO version.')
 
         if model_name in ('HRNet', 'hrnet'):
             self.model = HRNet(c=c, nof_joints=nof_joints)
@@ -94,32 +113,38 @@ class SimpleHRNet:
         else:
             raise ValueError('Wrong model name.')
 
-        checkpoint = torch.load(checkpoint_path, map_location=self.device)
-        if 'model' in checkpoint:
-            self.model.load_state_dict(checkpoint['model'])
-        else:
-            self.model.load_state_dict(checkpoint)
-
-        if 'cuda' in str(self.device):
-            print("device: 'cuda' - ", end="")
-
-            if 'cuda' == str(self.device):
-                # if device is set to 'cuda', all available GPUs will be used
-                print("%d GPU(s) will be used" % torch.cuda.device_count())
-                device_ids = None
+        if not self.enable_tensorrt:
+            checkpoint = torch.load(checkpoint_path, map_location=self.device)
+            if 'model' in checkpoint:
+                self.model.load_state_dict(checkpoint['model'])
             else:
-                # if device is set to 'cuda:IDS', only that/those device(s) will be used
-                print("GPU(s) '%s' will be used" % str(self.device))
-                device_ids = [int(x) for x in str(self.device)[5:].split(',')]
+                self.model.load_state_dict(checkpoint)
 
-            self.model = torch.nn.DataParallel(self.model, device_ids=device_ids)
-        elif 'cpu' == str(self.device):
-            print("device: 'cpu'")
+            if 'cuda' in str(self.device):
+                print("device: 'cuda' - ", end="")
+
+                if 'cuda' == str(self.device):
+                    # if device is set to 'cuda', all available GPUs will be used
+                    print("%d GPU(s) will be used" % torch.cuda.device_count())
+                    device_ids = None
+                else:
+                    # if device is set to 'cuda:IDS', only that/those device(s) will be used
+                    print("GPU(s) '%s' will be used" % str(self.device))
+                    device_ids = [int(x) for x in str(self.device)[5:].split(',')]
+
+                self.model = torch.nn.DataParallel(self.model, device_ids=device_ids)
+            elif 'cpu' == str(self.device):
+                print("device: 'cpu'")
+            else:
+                raise ValueError('Wrong device name.')
+
+            self.model = self.model.to(device)
+            self.model.eval()
         else:
-            raise ValueError('Wrong device name.')
-
-        self.model = self.model.to(device)
-        self.model.eval()
+            from torch2trt import TRTModule
+            self.model = TRTModule()
+            self.model.load_state_dict(torch.load(checkpoint_path))
+            self.model.cuda().eval()
 
         if not self.multiperson:
             self.transform = transforms.Compose([
@@ -128,12 +153,17 @@ class SimpleHRNet:
             ])
 
         else:
-            self.detector = YOLOv3(model_def=yolo_model_def,
-                                   class_path=yolo_class_path,
-                                   weights_path=yolo_weights_path,
-                                   classes=('person',),
-                                   max_batch_size=self.max_batch_size,
-                                   device=device)
+            if self.yolo_version == 'v3':
+                self.detector = YOLOv3(model_def=yolo_model_def,
+                                       class_path=yolo_class_path,
+                                       weights_path=yolo_weights_path,
+                                       classes=('person',),
+                                       max_batch_size=self.max_batch_size,
+                                       device=device)
+            else:
+                self.detector = YOLOv5(model_def=yolo_model_def,
+                                       device=device)
+
             self.transform = transforms.Compose([
                 transforms.ToPILImage(),
                 transforms.Resize((self.resolution[0], self.resolution[1])),  # (height, width)
@@ -196,10 +226,10 @@ class SimpleHRNet:
 
         else:
             detections = self.detector.predict_single(image)
-
             nof_people = len(detections) if detections is not None else 0
             boxes = np.empty((nof_people, 4), dtype=np.int32)
-            images = torch.empty((nof_people, 3, self.resolution[0], self.resolution[1]))  # (height, width)
+            # boxes = torch.empty((nof_people, 4),device=self.device)
+            images = torch.empty((nof_people, 3, self.resolution[0], self.resolution[1]), device=self.device)  # (height, width)
             heatmaps = np.zeros((nof_people, self.nof_joints, self.resolution[0] // 4, self.resolution[1] // 4),
                                 dtype=np.float32)
 
@@ -212,21 +242,41 @@ class SimpleHRNet:
 
                     # Adapt detections to match HRNet input aspect ratio (as suggested by xtyDoge in issue #14)
                     correction_factor = self.resolution[0] / self.resolution[1] * (x2 - x1) / (y2 - y1)
+
+                    # Using padding instead of bbox enlargement, this should reduce cross-person keypoint detection
                     if correction_factor > 1:
                         # increase y side
                         center = y1 + (y2 - y1) // 2
                         length = int(round((y2 - y1) * correction_factor))
-                        y1 = max(0, center - length // 2)
-                        y2 = min(image.shape[0], center + length // 2)
+                        x1_new = x1
+                        x2_new = x2
+                        y1_new = int(center - length // 2)
+                        y2_new = int(center + length // 2)
+                        pad = (int(abs(y1_new - y1))), int(abs(y2_new - y2))
+                        pad_tuple = (pad, (0, 0), (0, 0))
+
                     elif correction_factor < 1:
-                        # increase x side
                         center = x1 + (x2 - x1) // 2
                         length = int(round((x2 - x1) * 1 / correction_factor))
-                        x1 = max(0, center - length // 2)
-                        x2 = min(image.shape[1], center + length // 2)
+                        x1_new = int(center - length // 2)
+                        x2_new = int(center + length // 2)
+                        y1_new = y1
+                        y2_new = y2
+                        pad = (abs(x1_new - x1)), int(abs(x2_new - x2))
+                        pad_tuple = ((0, 0), pad, (0, 0))
+                    else:
+                        x1_new = x1
+                        x2_new = x2
+                        y1_new = y1
+                        y2_new = y2
+                        pad_tuple = None
 
-                    boxes[i] = [x1, y1, x2, y2]
-                    images[i] = self.transform(image[y1:y2, x1:x2, ::-1])
+                    image_crop = image[y1:y2, x1:x2, ::-1]
+                    if pad_tuple is not None:
+                        image_crop = np.pad(image_crop, pad_tuple)
+                    images[i] = self.transform(image_crop)
+                    boxes[i] = [x1_new, y1_new, x2_new, y2_new]
+                    # boxes[i] = torch.tensor([x1_new, y1_new, x2_new, y2_new])
 
         if images.shape[0] > 0:
             images = images.to(self.device)
@@ -256,6 +306,26 @@ class SimpleHRNet:
                     pts[i, j, 0] = pt[0] * 1. / (self.resolution[0] // 4) * (boxes[i][3] - boxes[i][1]) + boxes[i][1]
                     pts[i, j, 1] = pt[1] * 1. / (self.resolution[1] // 4) * (boxes[i][2] - boxes[i][0]) + boxes[i][0]
                     pts[i, j, 2] = joint[pt]
+
+            # # Torch alternative, it could be faster
+            # pts = torch.empty((out.shape[0], out.shape[1], 3), dtype=torch.float32,device=self.device)
+            # # For each human, for each joint: y, x, confidence
+            # (b, indices) = torch.max(out, dim=2)
+            # (b, indices) = torch.max(b, dim=2)
+            #
+            # (c, indicesc) = torch.max(out, dim=3)
+            # (c, indicesc) = torch.max(c, dim=2)
+            # dims = (self.resolution[0]//4, self.resolution[1]//4)
+            # dim1 = torch.tensor(1. / dims[0], device=self.device)
+            # dim2 = torch.tensor(1. / dims[1], device=self.device)
+            #
+            # for i in range(0, out.shape[0]):
+            #     pts[i, :, 0] = indicesc[i, :] * dim1 * (boxes[i][3] - boxes[i][1]) + boxes[i][1]
+            #     pts[i, :, 1] = indices[i, :] * dim2 * (boxes[i][2] - boxes[i][0]) + boxes[i][0]
+            #     pts[i, :, 2] = c[i, :]
+            #
+            # pts = pts.cpu().numpy()
+            # boxes = boxes.cpu().numpy()
 
         else:
             pts = np.empty((0, 0, 3), dtype=np.float32)
@@ -321,6 +391,8 @@ class SimpleHRNet:
 
                         # Adapt detections to match HRNet input aspect ratio (as suggested by xtyDoge in issue #14)
                         correction_factor = self.resolution[0] / self.resolution[1] * (x2 - x1) / (y2 - y1)
+
+                        # TODO Use padding instead of bbox enlargement here too
                         if correction_factor > 1:
                             # increase y side
                             center = y1 + (y2 - y1) // 2

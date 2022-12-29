@@ -7,7 +7,7 @@ import numpy as np
 import torch
 from torchvision.transforms import transforms
 
-sys.path.append(os.path.join(os.getcwd(), 'models', 'detectors', 'yolo'))
+sys.path.append(os.path.join(os.getcwd(), 'models_', 'detectors', 'yolo'))
 
 from .yolo.models import Darknet
 from .yolo.utils.utils import load_classes, non_max_suppression
@@ -29,10 +29,10 @@ def letterbox(img, new_shape=416, color=(127.5, 127.5, 127.5), mode='auto'):
         ratio = max(new_shape) / max(shape)  # ratio  = new / old
     new_unpad = (int(round(shape[1] * ratio)), int(round(shape[0] * ratio)))
 
-    if mode is 'auto':  # minimum rectangle
+    if mode == 'auto':  # minimum rectangle
         dw = np.mod(new_shape - new_unpad[0], 32) / 2  # width padding
         dh = np.mod(new_shape - new_unpad[1], 32) / 2  # height padding
-    elif mode is 'square':  # square
+    elif mode == 'square':  # square
         dw = (new_shape - new_unpad[0]) / 2  # width padding
         dh = (new_shape - new_unpad[1]) / 2  # height padding
     else:
